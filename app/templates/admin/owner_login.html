@@ -1,0 +1,171 @@
+{% extends "admin/base.html" %}
+{% block title %}Restaurant Owner Login{% endblock %}
+{% block content %}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .login-container {
+        max-width: 450px;
+        width: 100%;
+        padding: 20px;
+    }
+    .login-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+    .login-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px 30px;
+        text-align: center;
+        color: white;
+    }
+    .login-header h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 2rem;
+    }
+    .login-header p {
+        margin: 10px 0 0;
+        opacity: 0.9;
+    }
+    .login-body {
+        padding: 40px 30px;
+    }
+    .form-floating {
+        margin-bottom: 20px;
+    }
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        padding: 12px 15px;
+        height: 55px;
+    }
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .form-floating label {
+        padding: 1rem 0.75rem;
+    }
+    .btn-login {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 15px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        width: 100%;
+        color: white;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    .forgot-password {
+        text-align: center;
+        margin-top: 20px;
+    }
+    .forgot-password a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .forgot-password a:hover {
+        text-decoration: underline;
+    }
+    .admin-link {
+        text-align: center;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .admin-link a {
+        color: #6c757d;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    .admin-link a:hover {
+        color: #495057;
+    }
+    .icon-wrapper {
+        background: rgba(255, 255, 255, 0.2);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+    }
+    .icon-wrapper i {
+        font-size: 2.5rem;
+    }
+</style>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="icon-wrapper">
+                <i class="bi bi-shop"></i>
+            </div>
+            <h2>Restaurant Owner</h2>
+            <p>Login to manage your restaurant</p>
+        </div>
+        <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            <i class="bi bi-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('admin.owner_login') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="username" name="username" placeholder="Username" required autofocus>
+                    <label for="username"><i class="bi bi-person me-2"></i>Username</label>
+                </div>
+
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                    <label for="password"><i class="bi bi-lock me-2"></i>Password</label>
+                </div>
+
+                <button type="submit" class="btn btn-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Login to Dashboard
+                </button>
+            </form>
+
+            <div class="forgot-password">
+                <a href="{{ url_for('admin.forgot_password') }}">
+                    <i class="bi bi-question-circle me-1"></i>Forgot Password?
+                </a>
+            </div>
+
+            <div class="admin-link">
+                <a href="{{ url_for('admin.login') }}">
+                    <i class="bi bi-shield-lock me-1"></i>Admin Login
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

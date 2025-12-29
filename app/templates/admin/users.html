@@ -1,0 +1,269 @@
+{% extends "admin/base.html" %}
+{% block title %}Restaurant Owners{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h2 class="mb-1">Restaurant Owners</h2>
+    <p class="text-muted">View and manage all restaurant owner accounts</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="fs-2 fw-bold text-primary mb-1">{{ stats.total }}</div>
+                <div class="text-muted small">Total Owners</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="fs-2 fw-bold text-success mb-1">{{ stats.active }}</div>
+                <div class="text-muted small">Active</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="fs-2 fw-bold text-secondary mb-1">{{ stats.inactive }}</div>
+                <div class="text-muted small">Inactive</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-4">
+                <div class="fs-2 fw-bold text-info mb-1">{{ stats.with_restaurant }}</div>
+                <div class="text-muted small">With Restaurant</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Owners Table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3">Owner</th>
+                        <th class="border-0 py-3">Contact</th>
+                        <th class="border-0 py-3">Restaurant</th>
+                        <th class="border-0 py-3">Created By</th>
+                        <th class="border-0 py-3 text-center">Status</th>
+                        <th class="border-0 py-3">Joined</th>
+                        <th class="border-0 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-person-fill text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">{{ user.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small">
+                                <div class="text-muted"><i class="bi bi-envelope me-1"></i>{{ user.email }}</div>
+                                <div class="text-muted"><i class="bi bi-telephone me-1"></i>{{ user.phone or 'N/A' }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.restaurant %}
+                                <a href="{{ url_for('admin.restaurant_detail', restaurant_id=user.restaurant.id) }}" class="text-decoration-none">
+                                    <i class="bi bi-shop me-1"></i>{{ user.restaurant.name }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted small">No restaurant</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.created_by %}
+                                <span class="badge bg-light text-dark border">{{ user.created_by.username }}</span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {{ 'bg-success' if user.is_active else 'bg-secondary' }}">
+                                {{ 'Active' if user.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">{{ user.created_at.strftime('%b %d, %Y') }}</td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <!-- Toggle Status -->
+                                <form action="{{ url_for('admin.toggle_user', user_id=user.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if user.is_active else 'btn-outline-success' }}"
+                                            title="{{ 'Disable' if user.is_active else 'Enable' }}">
+                                        <i class="bi bi-{{ 'pause-fill' if user.is_active else 'play-fill' }}"></i>
+                                    </button>
+                                </form>
+
+                                <!-- Reset Password -->
+                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
+                                        data-bs-target="#resetPasswordModal{{ user.id }}" title="Reset Password">
+                                    <i class="bi bi-key-fill"></i>
+                                </button>
+
+                                {% if admin_user.role in ['superadmin', 'system_admin'] %}
+                                <!-- Delete Button -->
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+                                        data-bs-target="#deleteUserModal{{ user.id }}" title="Delete">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not users %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="bi bi-people fs-1 d-block mb-2"></i>
+                                <p class="mb-0">No restaurant owners found</p>
+                                <small>Owners will appear here when restaurants are created</small>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- All Modals - Outside table structure for stability -->
+{% for user in users %}
+<!-- Delete User Modal -->
+{% if admin_user.role in ['superadmin', 'system_admin'] %}
+<div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteUserModalLabel{{ user.id }}" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-light">
+                <h5 class="modal-title" id="deleteUserModalLabel{{ user.id }}">
+                    <i class="bi bi-exclamation-triangle text-danger me-2"></i>Delete Owner
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-3">Are you sure you want to delete <strong>{{ user.username }}</strong>?</p>
+                {% if user.restaurant %}
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    This user has a restaurant. Delete the restaurant first.
+                </div>
+                {% else %}
+                <div class="alert alert-danger mb-0">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    This action cannot be undone.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if not user.restaurant %}
+                <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-2"></i>Delete
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reset Password Modal - Stable and Fixed -->
+<div class="modal fade" id="resetPasswordModal{{ user.id }}" tabindex="-1" aria-labelledby="resetPasswordModalLabel{{ user.id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-warning bg-opacity-10">
+                <h5 class="modal-title" id="resetPasswordModalLabel{{ user.id }}">
+                    <i class="bi bi-key text-warning me-2"></i>Reset Password
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('admin.reset_owner_password', user_id=user.id) }}" method="POST" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <p class="mb-4">Reset password for <strong class="text-primary">{{ user.username }}</strong></p>
+
+                    <div class="mb-3">
+                        <label for="newPassword{{ user.id }}" class="form-label fw-semibold">New Password *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" id="newPassword{{ user.id }}" name="new_password" class="form-control" required minlength="6" placeholder="Minimum 6 characters" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword{{ user.id }}" class="form-label fw-semibold">Confirm Password *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" id="confirmPassword{{ user.id }}" name="confirm_password" class="form-control" required minlength="6" placeholder="Re-enter password" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        The owner will be able to login with this new password immediately.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-key-fill me-2"></i>Reset Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+
+/* Stable modal styling - prevents flickering */
+.modal {
+    z-index: 1055 !important;
+}
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+.modal-dialog {
+    will-change: transform;
+}
+.modal-content {
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+}
+</style>
+
+{% endblock %}
+

@@ -1,0 +1,237 @@
+{% extends "admin/base.html" %}
+{% block title %}My Restaurant{% endblock %}
+{% block content %}
+
+<!-- Restaurant Header -->
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="card-body text-white p-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2 fw-bold">{{ restaurant.name }}</h2>
+                <p class="mb-3 opacity-75">{{ restaurant.description or 'Welcome to your restaurant dashboard' }}</p>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if restaurant.address %}
+                    <div><i class="bi bi-geo-alt-fill me-2"></i>{{ restaurant.address }}</div>
+                    {% endif %}
+                    {% if restaurant.phone %}
+                    <div><i class="bi bi-telephone-fill me-2"></i>{{ restaurant.phone }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="mb-2">
+                    <div class="badge bg-white text-dark px-3 py-2 fs-6">
+                        <i class="bi bi-circle-fill {{ 'text-success' if restaurant.is_active else 'text-danger' }} me-2"></i>
+                        {{ 'Active' if restaurant.is_active else 'Inactive' }}
+                    </div>
+                </div>
+                <a href="{{ url_for('admin.owner_logout') }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Owner Information -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                        <i class="bi bi-person-fill fs-4 text-primary"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 text-muted">Owner Information</h6>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <strong>Name:</strong> {{ user.username }}
+                </div>
+                <div class="mb-2">
+                    <strong>Email:</strong> {{ user.email }}
+                </div>
+                <div class="mb-2">
+                    <strong>Phone:</strong> {{ user.phone or 'Not provided' }}
+                </div>
+                <div class="mb-0">
+                    <strong>Member Since:</strong> {{ user.created_at.strftime('%b %d, %Y') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="col-md-8">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm text-center h-100">
+                    <div class="card-body py-4">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-3 mb-2">
+                            <i class="bi bi-receipt fs-3 text-success"></i>
+                        </div>
+                        <div class="fs-2 fw-bold text-success">{{ total_orders }}</div>
+                        <div class="text-muted small">Total Orders</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm text-center h-100">
+                    <div class="card-body py-4">
+                        <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex p-3 mb-2">
+                            <i class="bi bi-clock-history fs-3 text-warning"></i>
+                        </div>
+                        <div class="fs-2 fw-bold text-warning">{{ pending_orders }}</div>
+                        <div class="text-muted small">Pending Orders</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm text-center h-100">
+                    <div class="card-body py-4">
+                        <div class="bg-info bg-opacity-10 rounded-circle d-inline-flex p-3 mb-2">
+                            <i class="bi bi-calendar-check fs-3 text-info"></i>
+                        </div>
+                        <div class="fs-2 fw-bold text-info">{{ today_orders }}</div>
+                        <div class="text-muted small">Today's Orders</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Menu Overview -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-menu-button-wide-fill fs-4 text-primary me-3"></i>
+                    <div>
+                        <h5 class="mb-0">Menu Categories</h5>
+                        <small class="text-muted">{{ categories|length }} categories, {{ total_items }} items</small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if categories %}
+                <div class="list-group list-group-flush">
+                    {% for category in categories[:5] %}
+                    <div class="list-group-item border-0 px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-circle-fill {{ 'text-success' if category.is_active else 'text-secondary' }} me-2" style="font-size: 8px;"></i>
+                                <strong>{{ category.name }}</strong>
+                            </div>
+                            <span class="badge bg-light text-dark">{{ category.items|length }} items</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if categories|length > 5 %}
+                <div class="text-center mt-2">
+                    <small class="text-muted">+ {{ categories|length - 5 }} more categories</small>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    <p class="mb-0">No menu categories yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-qr-code fs-4 text-primary me-3"></i>
+                    <div>
+                        <h5 class="mb-0">Restaurant QR Code</h5>
+                        <small class="text-muted">Customers can scan to view menu</small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body text-center">
+                {% if restaurant.qr_code_path %}
+                <img src="/static/qrcodes/{{ restaurant.qr_code_path }}" alt="QR Code" class="img-fluid mb-3" style="max-width: 250px;">
+                <div>
+                    <a href="/static/qrcodes/{{ restaurant.qr_code_path }}" download class="btn btn-primary btn-sm">
+                        <i class="bi bi-download me-2"></i>Download QR Code
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-muted py-4">
+                    <i class="bi bi-qr-code fs-1 d-block mb-2"></i>
+                    <p class="mb-0">QR Code not generated yet</p>
+                    <small>Contact admin to generate QR code</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tables Overview -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-4 pb-3">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-table fs-4 text-primary me-3"></i>
+            <div>
+                <h5 class="mb-0">Tables</h5>
+                <small class="text-muted">{{ tables|length }} tables configured</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if tables %}
+        <div class="row g-3">
+            {% for table in tables %}
+            <div class="col-md-3 col-sm-4 col-6">
+                <div class="card border">
+                    <div class="card-body text-center py-3">
+                        <i class="bi bi-table fs-3 text-primary d-block mb-2"></i>
+                        <h6 class="mb-0">Table {{ table.table_number }}</h6>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            <p class="mb-0">No tables configured yet</p>
+            <small>Contact admin to set up tables</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Help Notice -->
+<div class="alert alert-info border-0 shadow-sm mt-4">
+    <div class="d-flex align-items-start">
+        <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+        <div>
+            <h6 class="alert-heading mb-2">Read-Only View</h6>
+            <p class="mb-0">This is a view-only dashboard. To make changes to your restaurant, menu, or settings, please use the mobile app or contact the administrator.</p>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+
+{% endblock %}
+

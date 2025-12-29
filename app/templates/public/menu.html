@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fafafa;
+            color: #333;
+            padding-bottom: 100px;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 0 0 5px;
+            color: #1a1a1a;
+        }
+        .header p {
+            font-size: 0.85rem;
+            color: #888;
+            margin: 0;
+        }
+        .table-info {
+            background: #f0f0f0;
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #555;
+            margin-top: 10px;
+        }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .category-section { margin-bottom: 30px; }
+        .category-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 15px;
+            padding-left: 5px;
+        }
+        .menu-card {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .menu-card-body {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .menu-card-info { flex: 1; padding-right: 15px; }
+        .menu-card-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 4px;
+            color: #1a1a1a;
+        }
+        .menu-card-desc {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        .menu-card-price {
+            font-weight: 700;
+            color: #1a1a1a;
+            font-size: 0.95rem;
+        }
+        .qty-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .qty-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            background: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            color: #555;
+        }
+        .qty-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+        .qty-btn.active { background: #1a1a1a; border-color: #1a1a1a; color: white; }
+        .qty-value {
+            font-weight: 600;
+            min-width: 24px;
+            text-align: center;
+        }
+        .menu-card-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .unavailable {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .unavailable-tag {
+            background: #eee;
+            color: #888;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+        .cart-bar.show { transform: translateY(0); }
+        .cart-bar-info { display: flex; align-items: center; gap: 10px; }
+        .cart-count {
+            background: white;
+            color: #1a1a1a;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .cart-bar-btn {
+            background: white;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .modal-content { border-radius: 16px; border: none; }
+        .modal-header { border-bottom: none; padding: 20px 20px 10px; }
+        .modal-body { padding: 10px 20px 20px; }
+        .modal-footer { border-top: none; padding: 10px 20px 20px; }
+        .cart-list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .cart-list-item:last-child { border-bottom: none; }
+        .cart-item-name { font-weight: 500; }
+        .cart-item-qty { color: #888; font-size: 0.9rem; }
+        .cart-item-price { font-weight: 600; }
+        .order-btn {
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .order-btn:hover { background: #333; }
+        .success-modal { text-align: center; padding: 30px 20px; }
+        .success-icon {
+            width: 70px;
+            height: 70px;
+            background: #27ae60;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .success-icon svg { width: 36px; height: 36px; fill: white; }
+        .order-number-box {
+            background: #f5f5f5;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .order-number { font-size: 1.3rem; font-weight: 700; }
+        @media (max-width: 480px) {
+            .menu-card-img { width: 65px; height: 65px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ restaurant.name }}</h1>
+        <p>{{ restaurant.description or 'Browse our menu' }}</p>
+        {% if table %}
+        <div class="table-info">Table {{ table.table_number }}</div>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        {% set available_categories = [] %}
+        {% for category in categories %}
+            {% if category.items|selectattr('is_available')|list|length > 0 %}
+                {% set _ = available_categories.append(category) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if available_categories %}
+            {% for category in available_categories %}
+            <div class="category-section">
+                <div class="category-title">{{ category.name }}</div>
+                {% for item in category.items %}
+                    {% if item.is_available %}
+                    <div class="menu-card" data-id="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ item.price }}">
+                        <div class="menu-card-body">
+                            <div class="menu-card-info">
+                                <div class="menu-card-name">{{ item.name }}</div>
+                                {% if item.description %}
+                                <div class="menu-card-desc">{{ item.description }}</div>
+                                {% endif %}
+                                <div class="menu-card-price">${{ "%.2f"|format(item.price) }}</div>
+                            </div>
+                            {% if item.image_url %}
+                            <img src="{{ item.image_url }}" class="menu-card-img" alt="{{ item.name }}">
+                            {% endif %}
+                            <div class="qty-control">
+                                <button class="qty-btn" onclick="changeQty({{ item.id }}, -1)">−</button>
+                                <span class="qty-value" id="qty-{{ item.id }}">0</span>
+                                <button class="qty-btn" onclick="changeQty({{ item.id }}, 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted">No menu items available</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Cart Bar -->
+    <div class="cart-bar" id="cartBar">
+        <div class="cart-bar-info">
+            <span class="cart-count" id="cartCount">0</span>
+            <span>items</span>
+        </div>
+        <button class="cart-bar-btn" data-bs-toggle="modal" data-bs-target="#cartModal">
+            View Cart · $<span id="cartTotal">0.00</span>
+        </button>
+    </div>
+
+    <!-- Cart Modal -->
+    <div class="modal fade" id="cartModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Your Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cartItems"></div>
+                    <div class="mb-3 mt-3">
+                        <label class="form-label small text-muted">Special Instructions</label>
+                        <textarea class="form-control" id="orderNotes" rows="2" placeholder="Any requests?"></textarea>
+                    </div>
+                    {% if not table %}
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Table Number *</label>
+                        <input type="number" class="form-control" id="tableInput" placeholder="Enter table number" min="1">
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer flex-column align-items-stretch">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Total</span>
+                        <span class="fw-bold fs-5">$<span id="modalTotal">0.00</span></span>
+                    </div>
+                    <button class="order-btn" onclick="placeOrder()">Place Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content success-modal">
+                <div class="success-icon">
+                    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </div>
+                <h5>Order Placed!</h5>
+                <p class="text-muted small">Your order has been sent to the kitchen</p>
+                <div class="order-number-box">
+                    <div class="small text-muted">Order Number</div>
+                    <div class="order-number" id="orderNumber"></div>
+                </div>
+                <button class="order-btn" onclick="location.reload()">Order More</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const cart = {};
+        const items = {};
+        const hasTable = {{ 'true' if table else 'false' }};
+        const tableNum = {{ table.table_number if table else 'null' }};
+        const token = '{{ access_token or "" }}';
+        const restId = '{{ restaurant.public_id }}';
+
+        document.querySelectorAll('.menu-card[data-id]').forEach(el => {
+            items[el.dataset.id] = { id: +el.dataset.id, name: el.dataset.name, price: +el.dataset.price };
+        });
+
+        function changeQty(id, delta) {
+            cart[id] = Math.max(0, (cart[id] || 0) + delta);
+            document.getElementById('qty-' + id).textContent = cart[id];
+            updateCart();
+        }
+
+        function updateCart() {
+            let count = 0, total = 0;
+            for (const [id, qty] of Object.entries(cart)) {
+                if (qty > 0 && items[id]) { count += qty; total += qty * items[id].price; }
+            }
+            document.getElementById('cartCount').textContent = count;
+            document.getElementById('cartTotal').textContent = total.toFixed(2);
+            document.getElementById('modalTotal').textContent = total.toFixed(2);
+            document.getElementById('cartBar').classList.toggle('show', count > 0);
+
+            let html = '';
+            for (const [id, qty] of Object.entries(cart)) {
+                if (qty > 0 && items[id]) {
+                    html += `<div class="cart-list-item"><div><div class="cart-item-name">${items[id].name}</div><div class="cart-item-qty">×${qty}</div></div><div class="cart-item-price">$${(items[id].price * qty).toFixed(2)}</div></div>`;
+                }
+            }
+            document.getElementById('cartItems').innerHTML = html || '<p class="text-muted text-center">Cart is empty</p>';
+        }
+
+        async function placeOrder() {
+            const orderItems = [];
+            for (const [id, qty] of Object.entries(cart)) {
+                if (qty > 0) orderItems.push({ menu_item_id: +id, quantity: qty });
+            }
+            if (!orderItems.length) return alert('Cart is empty');
+
+            let tbl = tableNum, tkn = token;
+            if (!hasTable) {
+                const inp = document.getElementById('tableInput');
+                if (!inp.value) { alert('Enter table number'); inp.focus(); return; }
+                tbl = +inp.value; tkn = '';
+            }
+
+            try {
+                const payload = {
+                    restaurant_id: restId,
+                    table_number: tbl,
+                    items: orderItems,
+                    notes: document.getElementById('orderNotes').value
+                };
+
+                // Only add access_token if it exists
+                if (tkn) {
+                    payload.access_token = tkn;
+                }
+
+                console.log('Sending order:', payload);
+
+                const res = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                console.log('Order response:', data);
+
+                if (data.success) {
+                    // Redirect to payment page
+                    window.location.href = '/payment/' + data.data.order_number;
+                } else {
+                    alert(data.error || data.message || 'Order failed. Please try again.');
+                }
+            } catch (e) {
+                console.error('Order error:', e);
+                alert('Error placing order: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,254 @@
+{% extends "admin/base.html" %}
+{% block title %}Moderation Statistics{% endblock %}
+{% block content %}
+<nav class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.registrations') }}">Registrations</a></li>
+        <li class="breadcrumb-item active">Statistics</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Moderation Statistics</h2>
+    <a href="{{ url_for('admin.registrations') }}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Queue
+    </a>
+</div>
+
+<!-- Overview Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-primary">{{ overall.total }}</div>
+                <div class="small text-muted">Total Requests</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-warning">{{ overall.pending }}</div>
+                <div class="small text-muted">Pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-info">{{ overall.under_review }}</div>
+                <div class="small text-muted">Under Review</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-success">{{ overall.approved }}</div>
+                <div class="small text-muted">Approved</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-danger">{{ overall.rejected }}</div>
+                <div class="small text-muted">Rejected</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center bg-success text-white">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold">{{ "%.1f"|format(overall.approval_rate) }}%</div>
+                <div class="small opacity-75">Approval Rate</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Daily Activity Chart -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Daily Activity (Last 7 Days)</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>New Requests</th>
+                                <th>Processed</th>
+                                <th>Visual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in daily_stats %}
+                            <tr>
+                                <td>{{ day.date }}</td>
+                                <td>{{ day.day_name }}</td>
+                                <td><span class="badge bg-primary">{{ day.new }}</span></td>
+                                <td><span class="badge bg-success">{{ day.processed }}</span></td>
+                                <td style="width: 40%;">
+                                    <div class="d-flex gap-1" style="height: 20px;">
+                                        {% if day.new > 0 %}
+                                        <div class="bg-primary rounded" style="width: {{ (day.new / 10) * 100 }}%; min-width: 10px;" title="New: {{ day.new }}"></div>
+                                        {% endif %}
+                                        {% if day.processed > 0 %}
+                                        <div class="bg-success rounded" style="width: {{ (day.processed / 10) * 100 }}%; min-width: 10px;" title="Processed: {{ day.processed }}"></div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Distribution -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Status Distribution</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="progress mb-3" style="height: 30px;">
+                            {% set total = overall.total or 1 %}
+                            {% if overall.pending > 0 %}
+                            <div class="progress-bar bg-warning" style="width: {{ (overall.pending / total) * 100 }}%">
+                                {{ overall.pending }} Pending
+                            </div>
+                            {% endif %}
+                            {% if overall.under_review > 0 %}
+                            <div class="progress-bar bg-info" style="width: {{ (overall.under_review / total) * 100 }}%">
+                                {{ overall.under_review }} Review
+                            </div>
+                            {% endif %}
+                            {% if overall.more_info > 0 %}
+                            <div class="progress-bar bg-secondary" style="width: {{ (overall.more_info / total) * 100 }}%">
+                                {{ overall.more_info }} Info
+                            </div>
+                            {% endif %}
+                            {% if overall.approved > 0 %}
+                            <div class="progress-bar bg-success" style="width: {{ (overall.approved / total) * 100 }}%">
+                                {{ overall.approved }} Approved
+                            </div>
+                            {% endif %}
+                            {% if overall.rejected > 0 %}
+                            <div class="progress-bar bg-danger" style="width: {{ (overall.rejected / total) * 100 }}%">
+                                {{ overall.rejected }} Rejected
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="row text-center small">
+                    <div class="col"><span class="badge bg-warning text-dark">Pending</span> {{ ((overall.pending / total) * 100)|round(1) }}%</div>
+                    <div class="col"><span class="badge bg-info">Under Review</span> {{ ((overall.under_review / total) * 100)|round(1) }}%</div>
+                    <div class="col"><span class="badge bg-success">Approved</span> {{ ((overall.approved / total) * 100)|round(1) }}%</div>
+                    <div class="col"><span class="badge bg-danger">Rejected</span> {{ ((overall.rejected / total) * 100)|round(1) }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Moderator Performance -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-people me-2"></i>Moderator Performance (7 Days)</h6>
+            </div>
+            <div class="card-body">
+                {% if moderator_stats %}
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Moderator</th>
+                            <th class="text-center">Actions</th>
+                            <th class="text-center">Approved</th>
+                            <th class="text-center">Rejected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in moderator_stats %}
+                        <tr>
+                            <td>{{ stat.username }}</td>
+                            <td class="text-center"><span class="badge bg-primary">{{ stat.total_actions }}</span></td>
+                            <td class="text-center"><span class="badge bg-success">{{ stat.approved or 0 }}</span></td>
+                            <td class="text-center"><span class="badge bg-danger">{{ stat.rejected or 0 }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center mb-0">No moderation activity in the past 7 days</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Metrics -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Quick Metrics</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Pending Queue</span>
+                    <span class="badge bg-{{ 'danger' if overall.pending > 20 else 'warning' if overall.pending > 10 else 'success' }}">
+                        {{ overall.pending }} requests
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Backlog Status</span>
+                    {% if overall.pending == 0 %}
+                    <span class="badge bg-success">Clear!</span>
+                    {% elif overall.pending < 5 %}
+                    <span class="badge bg-success">Low</span>
+                    {% elif overall.pending < 15 %}
+                    <span class="badge bg-warning text-dark">Moderate</span>
+                    {% else %}
+                    <span class="badge bg-danger">High</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Approval Rate</span>
+                    <span class="badge bg-{{ 'success' if overall.approval_rate >= 70 else 'warning' if overall.approval_rate >= 50 else 'danger' }}">
+                        {{ "%.1f"|format(overall.approval_rate) }}%
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Review Rate</span>
+                    <span class="badge bg-info">
+                        {% set pending_review = overall.pending + overall.under_review %}
+                        {% set processed = overall.approved + overall.rejected %}
+                        {{ "%.1f"|format((processed / (processed + pending_review) * 100) if (processed + pending_review) > 0 else 0) }}% processed
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Status Legend</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2"><span class="badge bg-warning text-dark me-2">Pending</span> Awaiting review</div>
+                <div class="mb-2"><span class="badge bg-info me-2">Under Review</span> Being reviewed</div>
+                <div class="mb-2"><span class="badge bg-secondary me-2">More Info</span> Waiting for applicant</div>
+                <div class="mb-2"><span class="badge bg-success me-2">Approved</span> Account created</div>
+                <div><span class="badge bg-danger me-2">Rejected</span> Application denied</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

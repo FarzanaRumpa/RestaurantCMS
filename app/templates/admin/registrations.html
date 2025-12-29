@@ -1,0 +1,310 @@
+{% extends "admin/base.html" %}
+{% block title %}Registration Queue{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Registration Queue</h2>
+        <p class="text-muted mb-0">Manage restaurant registration applications</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.registration_stats') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-graph-up me-1"></i>View Statistics
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-warning text-dark">
+            <div class="card-body py-3 text-center">
+                <div class="fs-3 fw-bold">{{ stats.total_pending }}</div>
+                <div class="small">Pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body py-3 text-center">
+                <div class="fs-3 fw-bold">{{ stats.total_under_review }}</div>
+                <div class="small">Under Review</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body py-3 text-center">
+                <div class="fs-3 fw-bold">{{ stats.total_approved }}</div>
+                <div class="small">Approved</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body py-3 text-center">
+                <div class="fs-3 fw-bold">{{ stats.total_rejected }}</div>
+                <div class="small">Rejected</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body py-3 text-center">
+                <div class="fs-3 fw-bold">{{ stats.today_new }}</div>
+                <div class="small">New Today</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-secondary text-white">
+            <div class="card-body py-3 text-center">
+                <div class="fs-3 fw-bold">{{ stats.today_processed }}</div>
+                <div class="small">Processed Today</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Urgent/High Priority Alert -->
+{% if stats.urgent_pending > 0 or stats.high_pending > 0 %}
+<div class="alert alert-danger d-flex align-items-center mb-4">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+    <div>
+        <strong>Attention Required!</strong>
+        {% if stats.urgent_pending > 0 %}
+        <span class="badge bg-danger ms-2">{{ stats.urgent_pending }} Urgent</span>
+        {% endif %}
+        {% if stats.high_pending > 0 %}
+        <span class="badge bg-warning text-dark ms-2">{{ stats.high_pending }} High Priority</span>
+        {% endif %}
+        requests waiting for review.
+    </div>
+</div>
+{% endif %}
+
+<!-- Filter Tabs -->
+<div class="card mb-4">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs">
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if current_status == 'pending' else '' }}"
+                   href="{{ url_for('admin.registrations', status='pending') }}">
+                    <i class="bi bi-hourglass-split me-1"></i>Pending
+                    <span class="badge bg-warning text-dark ms-1">{{ stats.total_pending }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if current_status == 'under_review' else '' }}"
+                   href="{{ url_for('admin.registrations', status='under_review') }}">
+                    <i class="bi bi-eye me-1"></i>Under Review
+                    <span class="badge bg-info ms-1">{{ stats.total_under_review }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if current_status == 'more_info_needed' else '' }}"
+                   href="{{ url_for('admin.registrations', status='more_info_needed') }}">
+                    <i class="bi bi-question-circle me-1"></i>More Info Needed
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if current_status == 'approved' else '' }}"
+                   href="{{ url_for('admin.registrations', status='approved') }}">
+                    <i class="bi bi-check-circle me-1"></i>Approved
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if current_status == 'rejected' else '' }}"
+                   href="{{ url_for('admin.registrations', status='rejected') }}">
+                    <i class="bi bi-x-circle me-1"></i>Rejected
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if current_status == 'all' else '' }}"
+                   href="{{ url_for('admin.registrations', status='all') }}">
+                    <i class="bi bi-list me-1"></i>All
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Restaurant</th>
+                        <th>Applicant</th>
+                        <th>Type</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Assigned To</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr class="{{ 'table-danger' if req.priority == 'urgent' else 'table-warning' if req.priority == 'high' else '' }}">
+                        <td>
+                            <code>{{ req.request_id }}</code>
+                        </td>
+                        <td>
+                            <strong>{{ req.restaurant_name }}</strong>
+                            {% if req.restaurant_address %}
+                            <br><small class="text-muted">{{ req.restaurant_address[:30] }}...</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ req.applicant_name }}<br>
+                            <small class="text-muted">{{ req.applicant_email }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ req.restaurant_type or 'N/A' }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if req.priority == 'urgent' else 'warning text-dark' if req.priority == 'high' else 'secondary' if req.priority == 'low' else 'primary' }}">
+                                {{ req.priority|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'warning text-dark' if req.status == 'pending' else 'info' if req.status == 'under_review' else 'success' if req.status == 'approved' else 'danger' if req.status == 'rejected' else 'secondary' }}">
+                                {{ req.status|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ req.created_at.strftime('%Y-%m-%d') }}<br>
+                            <small class="text-muted">{{ req.created_at.strftime('%H:%M') }}</small>
+                        </td>
+                        <td>
+                            {% if req.moderator %}
+                            {{ req.moderator.username }}
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.registration_detail', request_id=req.id) }}"
+                                   class="btn btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if req.status == 'pending' %}
+                                <button class="btn btn-outline-secondary" data-bs-toggle="modal"
+                                        data-bs-target="#assignModal{{ req.id }}" title="Assign">
+                                    <i class="bi bi-person-plus"></i>
+                                </button>
+                                {% endif %}
+                                {% if req.status in ['pending', 'under_review'] %}
+                                <button class="btn btn-outline-success" data-bs-toggle="modal"
+                                        data-bs-target="#approveModal{{ req.id }}" title="Approve">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" data-bs-toggle="modal"
+                                        data-bs-target="#rejectModal{{ req.id }}" title="Reject">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No registration requests found for this filter.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modals for each request -->
+{% for req in requests %}
+<!-- Assign Modal -->
+<div class="modal fade" id="assignModal{{ req.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.assign_registration', request_id=req.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Registration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Assign <strong>{{ req.restaurant_name }}</strong> to a moderator:</p>
+                    <select name="moderator_id" class="form-select" required>
+                        <option value="">Select Moderator</option>
+                        {% for mod in moderators %}
+                        <option value="{{ mod.id }}">{{ mod.username }} ({{ mod.role }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal{{ req.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.approve_registration', request_id=req.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Approve Registration</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to approve <strong>{{ req.restaurant_name }}</strong>?</p>
+                    <p class="text-muted small">This will create a new user account and restaurant.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (optional)</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Approve & Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal{{ req.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.reject_registration', request_id=req.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Reject Registration</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Reject registration for <strong>{{ req.restaurant_name }}</strong>?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Reason for rejection *</label>
+                        <textarea name="reason" class="form-control" rows="3" required
+                                  placeholder="Please provide a reason for rejecting this application..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Reject Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+

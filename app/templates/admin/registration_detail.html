@@ -1,0 +1,338 @@
+{% extends "admin/base.html" %}
+{% block title %}Registration: {{ request.request_id }}{% endblock %}
+{% block content %}
+<nav class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.registrations') }}">Registrations</a></li>
+        <li class="breadcrumb-item active">{{ request.request_id }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>{{ request.restaurant_name }}</h2>
+        <p class="text-muted mb-0">
+            <code>{{ request.request_id }}</code> •
+            Submitted {{ request.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-{{ 'danger' if request.priority == 'urgent' else 'warning text-dark' if request.priority == 'high' else 'secondary' if request.priority == 'low' else 'primary' }} fs-6">
+            {{ request.priority|title }} Priority
+        </span>
+        <span class="badge bg-{{ 'warning text-dark' if request.status == 'pending' else 'info' if request.status == 'under_review' else 'success' if request.status == 'approved' else 'danger' if request.status == 'rejected' else 'secondary' }} fs-6">
+            {{ request.status|replace('_', ' ')|title }}
+        </span>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-md-8">
+        <!-- Restaurant Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-shop me-2"></i>Restaurant Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless table-sm">
+                            <tr><th width="120">Name:</th><td>{{ request.restaurant_name }}</td></tr>
+                            <tr><th>Type:</th><td><span class="badge bg-secondary">{{ request.restaurant_type or 'Not specified' }}</span></td></tr>
+                            <tr><th>Phone:</th><td>{{ request.restaurant_phone or '-' }}</td></tr>
+                            <tr><th>Address:</th><td>{{ request.restaurant_address or '-' }}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Description:</strong>
+                        <p class="text-muted">{{ request.restaurant_description or 'No description provided' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applicant Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-person me-2"></i>Applicant Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless table-sm">
+                            <tr><th width="120">Name:</th><td>{{ request.applicant_name }}</td></tr>
+                            <tr><th>Email:</th><td><a href="mailto:{{ request.applicant_email }}">{{ request.applicant_email }}</a></td></tr>
+                            <tr><th>Phone:</th><td>{{ request.applicant_phone or '-' }}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        {% if request.business_license %}
+                        <div class="mb-2">
+                            <i class="bi bi-file-earmark-text me-1"></i>
+                            <a href="{{ request.business_license }}" target="_blank">Business License</a>
+                        </div>
+                        {% endif %}
+                        {% if request.id_document %}
+                        <div class="mb-2">
+                            <i class="bi bi-file-earmark-person me-1"></i>
+                            <a href="{{ request.id_document }}" target="_blank">ID Document</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Activity Log</h6>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if request.logs %}
+                <ul class="list-unstyled mb-0">
+                    {% for log in request.logs|sort(attribute='created_at', reverse=true) %}
+                    <li class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between">
+                            <strong>
+                                {% if log.action == 'viewed' %}
+                                <i class="bi bi-eye text-secondary"></i> Viewed
+                                {% elif log.action == 'approved' %}
+                                <i class="bi bi-check-circle text-success"></i> Approved
+                                {% elif log.action == 'rejected' %}
+                                <i class="bi bi-x-circle text-danger"></i> Rejected
+                                {% elif log.action == 'assigned' %}
+                                <i class="bi bi-person-plus text-primary"></i> Assigned
+                                {% elif log.action == 'requested_info' %}
+                                <i class="bi bi-question-circle text-info"></i> Requested Info
+                                {% elif log.action == 'note_added' %}
+                                <i class="bi bi-chat-text text-secondary"></i> Note Added
+                                {% else %}
+                                <i class="bi bi-circle"></i> {{ log.action|title }}
+                                {% endif %}
+                            </strong>
+                            <small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <small class="text-muted">by {{ log.moderator.username if log.moderator else 'System' }}</small>
+                        {% if log.notes %}
+                        <p class="mb-0 mt-1 text-muted small">{{ log.notes }}</p>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-0">No activity recorded yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Actions -->
+    <div class="col-md-4">
+        <!-- Quick Actions -->
+        {% if request.status in ['pending', 'under_review', 'more_info_needed'] %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal">
+                        <i class="bi bi-check-lg me-1"></i>Approve Application
+                    </button>
+                    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                        <i class="bi bi-x-lg me-1"></i>Reject Application
+                    </button>
+                    <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#requestInfoModal">
+                        <i class="bi bi-question-lg me-1"></i>Request More Info
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Assignment -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-person-badge me-2"></i>Assignment</h6>
+            </div>
+            <div class="card-body">
+                {% if request.moderator %}
+                <p class="mb-2">
+                    <strong>Assigned to:</strong> {{ request.moderator.username }}
+                </p>
+                {% else %}
+                <p class="text-muted mb-2">Not assigned</p>
+                {% endif %}
+
+                {% if request.status in ['pending', 'under_review'] %}
+                <form action="{{ url_for('admin.assign_registration', request_id=request.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group input-group-sm">
+                        <select name="moderator_id" class="form-select form-select-sm">
+                            <option value="">Reassign to...</option>
+                            {% for mod in moderators if moderators %}
+                            <option value="{{ mod.id }}">{{ mod.username }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-outline-secondary">Assign</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Priority -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-flag me-2"></i>Priority</h6>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('admin.update_priority', request_id=request.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group input-group-sm">
+                        <select name="priority" class="form-select form-select-sm">
+                            <option value="low" {{ 'selected' if request.priority == 'low' else '' }}>Low</option>
+                            <option value="normal" {{ 'selected' if request.priority == 'normal' else '' }}>Normal</option>
+                            <option value="high" {{ 'selected' if request.priority == 'high' else '' }}>High</option>
+                            <option value="urgent" {{ 'selected' if request.priority == 'urgent' else '' }}>Urgent</option>
+                        </select>
+                        <button type="submit" class="btn btn-outline-secondary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Note -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-sticky me-2"></i>Add Note</h6>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('admin.add_registration_note', request_id=request.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <textarea name="note" class="form-control form-control-sm mb-2" rows="3" placeholder="Add internal note..."></textarea>
+                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Add Note</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- If Approved -->
+        {% if request.status == 'approved' and request.approved_restaurant %}
+        <div class="card mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Created Account</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Restaurant:</strong>
+                    <a href="{{ url_for('admin.restaurant_detail', restaurant_id=request.approved_restaurant.id) }}">
+                        {{ request.approved_restaurant.name }}
+                    </a>
+                </p>
+                <p class="mb-0"><strong>Owner:</strong> {{ request.approved_user.username if request.approved_user else 'N/A' }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- If Rejected -->
+        {% if request.status == 'rejected' %}
+        <div class="card mb-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h6 class="mb-0"><i class="bi bi-x-circle me-2"></i>Rejection Details</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ request.rejection_reason or 'No reason provided' }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.approve_registration', request_id=request.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Approve Registration</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This will create:
+                        <ul class="mb-0 mt-2">
+                            <li>A new user account for <strong>{{ request.applicant_email }}</strong></li>
+                            <li>A new restaurant: <strong>{{ request.restaurant_name }}</strong></li>
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (optional)</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Approve & Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.reject_registration', request_id=request.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Reject Registration</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Reason for rejection *</label>
+                        <textarea name="reason" class="form-control" rows="3" required placeholder="Please provide a reason..."></textarea>
+                    </div>
+                    <div class="form-text">This reason will be shared with the applicant.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Reject Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Request Info Modal -->
+<div class="modal fade" id="requestInfoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.request_more_info', request_id=request.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Request More Information</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">What information do you need? *</label>
+                        <textarea name="message" class="form-control" rows="4" required
+                                  placeholder="Please describe what additional information or documents you need..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

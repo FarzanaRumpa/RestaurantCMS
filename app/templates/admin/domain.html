@@ -1,0 +1,265 @@
+{% extends "admin/base.html" %}
+{% block title %}Domain Configuration{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Domain Configuration</h2>
+        <p class="text-muted mb-0">Configure your domain to connect with mobile apps and QR codes</p>
+    </div>
+</div>
+
+<!-- Local Network Testing -->
+<div class="alert alert-info mb-4">
+    <div class="d-flex align-items-start">
+        <i class="bi bi-phone me-3" style="font-size: 2rem;"></i>
+        <div>
+            <h6 class="mb-1">📱 Test from Your Phone</h6>
+            <p class="mb-2 small">To scan QR codes from your phone on local network:</p>
+            <ol class="mb-2 small">
+                <li>Make sure your phone is connected to the <strong>same WiFi</strong> as this computer</li>
+                <li>Go to a restaurant and click <strong>"Regenerate"</strong> on the QR code</li>
+                <li>Scan the QR code with your phone camera</li>
+            </ol>
+            <div class="mt-2">
+                <strong>Current Network URL:</strong>
+                <code class="ms-2 p-1 bg-dark text-light rounded">{{ base_url }}</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Current Configuration -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-globe me-2"></i>Current Configuration</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label class="form-label text-muted small">Current Base URL</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                        <input type="text" class="form-control form-control-lg font-monospace" value="{{ base_url }}" readonly>
+                    </div>
+                    <div class="form-text">This URL is used for generating QR codes and API endpoints</div>
+                </div>
+
+                {% if admin_user.role in ['superadmin', 'system_admin'] %}
+                <form action="{{ url_for('admin.update_domain') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Update Base URL</label>
+                        <input type="url" name="base_url" class="form-control" placeholder="https://yourdomain.com" value="{{ base_url }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Update URL
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Setup Steps -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Domain Setup Steps</h6>
+            </div>
+            <div class="card-body">
+                <div class="step-list">
+                    <div class="step mb-4">
+                        <div class="d-flex">
+                            <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px;height:32px;font-weight:600;">1</div>
+                            <div>
+                                <h6 class="mb-1">Get a Domain Name</h6>
+                                <p class="text-muted small mb-2">Purchase a domain from providers like Namecheap, GoDaddy, or Cloudflare</p>
+                                <code class="small">example: menu.yourrestaurant.com</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step mb-4">
+                        <div class="d-flex">
+                            <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px;height:32px;font-weight:600;">2</div>
+                            <div>
+                                <h6 class="mb-1">Point DNS to Your Server</h6>
+                                <p class="text-muted small mb-2">Add an A record pointing to your server's IP address</p>
+                                <div class="bg-dark text-light p-3 rounded font-monospace small">
+                                    Type: A<br>
+                                    Name: @ (or subdomain)<br>
+                                    Value: YOUR_SERVER_IP<br>
+                                    TTL: Auto
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step mb-4">
+                        <div class="d-flex">
+                            <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px;height:32px;font-weight:600;">3</div>
+                            <div>
+                                <h6 class="mb-1">Configure SSL (HTTPS)</h6>
+                                <p class="text-muted small mb-2">Use Let's Encrypt for free SSL certificates</p>
+                                <div class="bg-dark text-light p-3 rounded font-monospace small">
+                                    # Install certbot<br>
+                                    sudo apt install certbot python3-certbot-nginx<br><br>
+                                    # Get certificate<br>
+                                    sudo certbot --nginx -d yourdomain.com
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step mb-4">
+                        <div class="d-flex">
+                            <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px;height:32px;font-weight:600;">4</div>
+                            <div>
+                                <h6 class="mb-1">Configure Nginx (Reverse Proxy)</h6>
+                                <p class="text-muted small mb-2">Set up Nginx to proxy requests to your Flask app</p>
+                                <div class="bg-dark text-light p-3 rounded font-monospace small" style="white-space: pre-wrap;">server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step mb-4">
+                        <div class="d-flex">
+                            <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px;height:32px;font-weight:600;">5</div>
+                            <div>
+                                <h6 class="mb-1">Set Environment Variable</h6>
+                                <p class="text-muted small mb-2">Update your environment configuration</p>
+                                <div class="bg-dark text-light p-3 rounded font-monospace small">
+                                    # In your .env file or environment<br>
+                                    BASE_URL=https://yourdomain.com
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="d-flex">
+                            <div class="step-number bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:32px;height:32px;font-weight:600;">✓</div>
+                            <div>
+                                <h6 class="mb-1">Regenerate QR Codes</h6>
+                                <p class="text-muted small mb-0">After updating the domain, regenerate all QR codes for restaurants</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Info -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Important URLs</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Admin Panel</label>
+                    <code class="d-block p-2 bg-light rounded">{{ base_url }}/admin</code>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Menu Page (QR)</label>
+                    <code class="d-block p-2 bg-light rounded">{{ base_url }}/menu/{restaurant_id}</code>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">API Base</label>
+                    <code class="d-block p-2 bg-light rounded">{{ base_url }}/api</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Options -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-cloud me-2"></i>Deployment Options</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3 pb-3 border-bottom">
+                    <h6 class="mb-1">VPS Providers</h6>
+                    <p class="small text-muted mb-2">Deploy on your own server</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-light text-dark">DigitalOcean</span>
+                        <span class="badge bg-light text-dark">Linode</span>
+                        <span class="badge bg-light text-dark">Vultr</span>
+                        <span class="badge bg-light text-dark">AWS EC2</span>
+                    </div>
+                </div>
+                <div class="mb-3 pb-3 border-bottom">
+                    <h6 class="mb-1">PaaS Platforms</h6>
+                    <p class="small text-muted mb-2">Easy deployment with auto-scaling</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-light text-dark">Railway</span>
+                        <span class="badge bg-light text-dark">Render</span>
+                        <span class="badge bg-light text-dark">Heroku</span>
+                    </div>
+                </div>
+                <div>
+                    <h6 class="mb-1">Recommended Stack</h6>
+                    <ul class="small text-muted mb-0">
+                        <li>Ubuntu 22.04 LTS</li>
+                        <li>Nginx + Gunicorn</li>
+                        <li>PostgreSQL (production)</li>
+                        <li>Let's Encrypt SSL</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Connection -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Test Connection</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Verify your domain is properly configured</p>
+                <button class="btn btn-outline-primary w-100" onclick="testConnection()">
+                    <i class="bi bi-arrow-repeat me-1"></i>Test Domain
+                </button>
+                <div id="testResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function testConnection() {
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Testing...</div>';
+
+    try {
+        const res = await fetch('{{ base_url }}/api/health', { mode: 'cors' });
+        if (res.ok) {
+            resultDiv.innerHTML = '<div class="alert alert-success small mb-0"><i class="bi bi-check-circle me-1"></i>Connection successful!</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Server responded with status ' + res.status + '</div>';
+        }
+    } catch (e) {
+        resultDiv.innerHTML = '<div class="alert alert-danger small mb-0"><i class="bi bi-x-circle me-1"></i>Connection failed. Check your domain configuration.</div>';
+    }
+}
+</script>
+{% endblock %}
+

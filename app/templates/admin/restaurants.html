@@ -1,0 +1,140 @@
+{% extends "admin/base.html" %}
+{% block title %}Restaurants{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Restaurants</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRestaurantModal">
+        <i class="bi bi-plus-lg me-2"></i>Add New Restaurant
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Restaurant Name</th>
+                    <th>Owner</th>
+                    <th>Email</th>
+                    <th>Tables</th>
+                    <th>Orders</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for restaurant in restaurants %}
+                <tr>
+                    <td><code>{{ restaurant.public_id }}</code></td>
+                    <td>
+                        <a href="{{ url_for('admin.restaurant_detail', restaurant_id=restaurant.id) }}">
+                            <strong>{{ restaurant.name }}</strong>
+                        </a>
+                    </td>
+                    <td>{{ restaurant.owner.username }}</td>
+                    <td>{{ restaurant.owner.email }}</td>
+                    <td><span class="badge bg-secondary">{{ restaurant.tables|length }}</span></td>
+                    <td><span class="badge bg-info">{{ restaurant.orders|length }}</span></td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if restaurant.is_active else 'danger' }}">
+                            {{ 'Active' if restaurant.is_active else 'Disabled' }}
+                        </span>
+                    </td>
+                    <td>{{ restaurant.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('admin.restaurant_detail', restaurant_id=restaurant.id) }}" class="btn btn-outline-primary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <form action="{{ url_for('admin.toggle_restaurant', restaurant_id=restaurant.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-{{ 'danger' if restaurant.is_active else 'success' }}" title="{{ 'Disable' if restaurant.is_active else 'Enable' }}">
+                                    <i class="bi bi-{{ 'x-circle' if restaurant.is_active else 'check-circle' }}"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-muted text-center py-4">
+                        No restaurants yet. Click "Add New Restaurant" to create one.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create Restaurant Modal -->
+<div class="modal fade" id="createRestaurantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.create_restaurant') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Restaurant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="text-muted mb-3">Owner Details</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Owner Username *</label>
+                            <input type="text" name="owner_username" class="form-control" required placeholder="e.g., john_doe">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Owner Email *</label>
+                            <input type="email" name="owner_email" class="form-control" required placeholder="e.g., owner@restaurant.com">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Owner Phone</label>
+                            <input type="tel" name="owner_phone" class="form-control" placeholder="+1234567890">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password *</label>
+                            <input type="password" name="owner_password" class="form-control" required placeholder="Min 6 characters">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Confirm Password *</label>
+                            <input type="password" name="owner_password_confirm" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6 class="text-muted mb-3">Restaurant Details</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Restaurant Name *</label>
+                            <input type="text" name="restaurant_name" class="form-control" required placeholder="e.g., The Italian Kitchen">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="restaurant_phone" class="form-control" placeholder="e.g., +1 234 567 8900">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <input type="text" name="restaurant_address" class="form-control" placeholder="e.g., 123 Main St, City">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="restaurant_description" class="form-control" rows="2" placeholder="Brief description of the restaurant"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Restaurant</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends "admin/base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between mb-4">
+    <h2>Orders Management</h2>
+    <div class="d-flex gap-2">
+        <form method="GET" action="{{ url_for('admin.orders') }}" class="d-flex gap-2">
+            <select name="restaurant_id" class="form-select form-select-sm">
+                <option value="">All Restaurants</option>
+                {% for r in restaurants %}
+                <option value="{{ r.id }}" {% if current_restaurant and current_restaurant == r.id %}selected{% endif %}>{{ r.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="status" value="{{ current_status or '' }}">
+            <button class="btn btn-outline-secondary btn-sm" type="submit">Filter</button>
+        </form>
+        <div>
+            <a href="{{ url_for('admin.orders') }}" class="btn btn-{{ 'primary' if not current_status else 'outline-primary' }} btn-sm">All</a>
+            <a href="{{ url_for('admin.orders', status='pending', restaurant_id=current_restaurant or '') }}" class="btn btn-{{ 'warning' if current_status == 'pending' else 'outline-warning' }} btn-sm">Pending</a>
+            <a href="{{ url_for('admin.orders', status='preparing', restaurant_id=current_restaurant or '') }}" class="btn btn-{{ 'info' if current_status == 'preparing' else 'outline-info' }} btn-sm">Preparing</a>
+            <a href="{{ url_for('admin.orders', status='completed', restaurant_id=current_restaurant or '') }}" class="btn btn-{{ 'success' if current_status == 'completed' else 'outline-success' }} btn-sm">Completed</a>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Row -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Total Orders</div>
+                        <div class="fs-4 fw-bold">{{ stats.total_orders }}</div>
+                    </div>
+                    <i class="bi bi-receipt fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Total Revenue</div>
+                        <div class="fs-4 fw-bold">${{ "%.2f"|format(stats.total_revenue) }}</div>
+                    </div>
+                    <i class="bi bi-currency-dollar fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Pending</div>
+                        <div class="fs-4 fw-bold">{{ stats.pending_orders }}</div>
+                    </div>
+                    <i class="bi bi-hourglass-split fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Avg Order Value</div>
+                        <div class="fs-4 fw-bold">${{ "%.2f"|format(stats.avg_order_value) }}</div>
+                    </div>
+                    <i class="bi bi-graph-up fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Orders ({{ orders|length }})</h6>
+        {% if current_restaurant %}
+        <span class="badge bg-info">Filtered by restaurant</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <table class="table table-striped table-hover">
+            <thead><tr><th>Order #</th><th>Restaurant</th><th>Table</th><th>Items</th><th>Total</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td><code>{{ order.order_number }}</code></td>
+                    <td>
+                        <a href="{{ url_for('admin.restaurant_detail', restaurant_id=order.restaurant.id) }}">
+                            {{ order.restaurant.name }}
+                        </a>
+                    </td>
+                    <td><span class="badge bg-secondary">Table {{ order.table_number }}</span></td>
+                    <td>
+                        <span class="badge bg-primary" title="{% for item in order.items %}{{ item.quantity }}x {{ item.menu_item.name if item.menu_item else 'Unknown' }}&#10;{% endfor %}">
+                            {{ order.items|length }} items
+                        </span>
+                    </td>
+                    <td><strong>${{ "%.2f"|format(order.total_price) }}</strong></td>
+                    <td>
+                        <span class="badge bg-{{ 'warning text-dark' if order.status == 'pending' else 'info' if order.status == 'preparing' else 'primary' if order.status == 'served' else 'success' if order.status == 'completed' else 'danger' }}">
+                            {{ order.status|title }}
+                        </span>
+                    </td>
+                    <td>
+                        <small>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            {% if order.status != 'completed' %}
+                            <form action="{{ url_for('admin.update_order_status', order_id=order.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="{% if order.status == 'pending' %}preparing{% elif order.status == 'preparing' %}served{% else %}completed{% endif %}">
+                                <button type="submit" class="btn btn-outline-success" title="Next Status">
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </form>
+                            <form action="{{ url_for('admin.force_complete_order', order_id=order.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-success" title="Force Complete">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-muted text-center py-4">No orders found</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Order Detail Modals -->
+{% for order in orders %}
+<div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Order {{ order.order_number }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>Restaurant:</strong> {{ order.restaurant.name }}<br>
+                    <strong>Table:</strong> {{ order.table_number }}<br>
+                    <strong>Status:</strong> <span class="badge bg-{{ 'warning text-dark' if order.status == 'pending' else 'info' if order.status == 'preparing' else 'success' }}">{{ order.status|title }}</span><br>
+                    <strong>Created:</strong> {{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </div>
+                <hr>
+                <h6>Order Items</h6>
+                <table class="table table-sm">
+                    <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead>
+                    <tbody>
+                        {% for item in order.items %}
+                        <tr>
+                            <td>{{ item.menu_item.name if item.menu_item else 'Unknown Item' }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>${{ "%.2f"|format(item.unit_price) }}</td>
+                            <td>${{ "%.2f"|format(item.subtotal) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold"><td colspan="3">Total</td><td>${{ "%.2f"|format(order.total_price) }}</td></tr>
+                    </tfoot>
+                </table>
+                {% if order.notes %}
+                <hr>
+                <strong>Notes:</strong> {{ order.notes }}
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

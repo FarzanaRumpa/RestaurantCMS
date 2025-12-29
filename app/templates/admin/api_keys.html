@@ -1,0 +1,461 @@
+{% extends "admin/base.html" %}
+{% block title %}API Keys{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>API Keys & Mobile App Integration</h2>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createApiKeyModal">Create API Key</button>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">API Keys</h6></div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead><tr><th>Token</th><th>Name</th><th>Restaurant</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for key in keys %}
+                        <tr>
+                            <td>
+                                <code class="api-token" id="token-{{ key.id }}">{{ key.token[:20] }}...</code>
+                                <button class="btn btn-outline-secondary btn-sm py-0 px-1 ms-1" onclick="copyToken('{{ key.token }}')" title="Copy full token">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </td>
+                            <td>{{ key.name }}</td>
+                            <td>{{ key.restaurant.name if key.restaurant else '-' }}</td>
+                            <td>{{ key.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td><span class="badge bg-{{ 'success' if key.is_active else 'danger' }}">{{ 'Active' if key.is_active else 'Disabled' }}</span></td>
+                            <td>
+                                <form action="{{ url_for('admin.toggle_api_key', key_id=key.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if key.is_active else 'success' }}">{{ 'Disable' if key.is_active else 'Enable' }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-muted text-center">No API keys yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-header"><h6 class="mb-0">Quick Stats</h6></div>
+            <div class="card-body">
+                <div class="mb-2"><strong>Total Keys:</strong> <span class="badge bg-primary">{{ keys|length }}</span></div>
+                <div class="mb-2"><strong>Active Keys:</strong> <span class="badge bg-success">{{ keys|selectattr('is_active')|list|length }}</span></div>
+                <div><strong>Disabled Keys:</strong> <span class="badge bg-danger">{{ keys|rejectattr('is_active')|list|length }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Documentation -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-book me-2"></i>API Documentation for Mobile App Integration</h6>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs" id="apiTabs" role="tablist">
+            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#public-menu">Public Menu (QR)</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#auth">Authentication</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#registration">Registration</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#menu">Menu Management</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#orders">Orders</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#restaurant">Restaurant</a></li>
+        </ul>
+        <div class="tab-content p-3 border border-top-0">
+            <!-- Public Menu API -->
+            <div class="tab-pane fade show active" id="public-menu">
+                <h6>Public Menu API (For Customer-Facing App / QR Code)</h6>
+                <p class="text-muted">These endpoints don't require authentication and are used by customers scanning QR codes.</p>
+
+                <div class="alert alert-info small">
+                    <strong>QR Code URL Format:</strong><br>
+                    <code>https://yourdomain.com/menu/{restaurant_id}</code> - Main restaurant QR<br>
+                    <code>https://yourdomain.com/menu/{restaurant_id}?table={num}&token={token}</code> - Table-specific QR
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/menu/{restaurant_id}/data</code>
+                    <p class="text-muted small mb-2">Get restaurant menu data (JSON)</p>
+                    <pre class="mb-0 text-light">
+Query params (optional):
+  - table: Table number
+  - token: Access token for table
+
+Response:
+{
+    "success": true,
+    "data": {
+        "restaurant": {
+            "id": "abc123",
+            "name": "Restaurant Name",
+            "description": "...",
+            "address": "...",
+            "phone": "...",
+            "is_active": true
+        },
+        "table_number": 5,  // null if no table
+        "categories": [
+            {
+                "id": 1,
+                "name": "Appetizers",
+                "items": [
+                    {
+                        "id": 1,
+                        "name": "Spring Rolls",
+                        "description": "Crispy vegetable rolls",
+                        "price": 8.99,
+                        "is_available": true,
+                        "image_url": "/static/uploads/..."
+                    }
+                ]
+            }
+        ]
+    }
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/orders/create</code>
+                    <p class="text-muted small mb-2">Place an order (for customers)</p>
+                    <pre class="mb-0 text-light">
+{
+    "restaurant_id": "abc123",
+    "table_number": 5,
+    "access_token": "token123",  // optional if table not from QR
+    "items": [
+        {"menu_item_id": 1, "quantity": 2},
+        {"menu_item_id": 3, "quantity": 1}
+    ],
+    "notes": "No onions please"
+}
+
+Response:
+{
+    "success": true,
+    "data": {
+        "order_number": "ORD-ABC123",
+        "status": "pending",
+        "total_price": 25.97,
+        "items": [...]
+    }
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded">
+                    <strong class="text-success">GET</strong> <code>/api/health</code>
+                    <p class="text-muted small mb-0">Health check endpoint for testing connectivity</p>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="auth">
+                <h6>Authentication</h6>
+                <p>Restaurant owners authenticate using JWT tokens. All API requests require authentication via Bearer token.</p>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/auth/login</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "username": "owner_username",
+    "password": "owner_password"
+}
+
+Response:
+{
+    "success": true,
+    "data": {
+        "access_token": "eyJ0...",
+        "refresh_token": "eyJ0..."
+    }
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-info">Headers for authenticated requests:</strong>
+                    <pre class="mb-0 mt-2 text-light">
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded">
+                    <strong class="text-warning">POST</strong> <code>/api/auth/refresh</code>
+                    <p class="text-muted small mb-0">Use refresh token to get new access token</p>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="registration">
+                <h6>Restaurant Registration (Public - No Auth Required)</h6>
+                <p>Endpoints for new restaurant owners to apply and check their registration status.</p>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/registration/apply</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "applicant_name": "John Doe",
+    "applicant_email": "john@example.com",
+    "applicant_phone": "+1234567890",
+    "restaurant_name": "John's Kitchen",
+    "restaurant_description": "Family restaurant serving Italian cuisine",
+    "restaurant_address": "123 Main St, City",
+    "restaurant_phone": "+1234567890",
+    "restaurant_type": "restaurant"  // cafe, restaurant, bar, fast-food
+}
+
+Response:
+{
+    "success": true,
+    "data": {
+        "request_id": "REQ-A1B2C3D4",
+        "status": "pending",
+        "message": "Your registration request has been submitted..."
+    }
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/registration/status/{request_id}</code>
+                    <pre class="mb-0 mt-2 text-light">
+Response:
+{
+    "success": true,
+    "data": {
+        "request_id": "REQ-A1B2C3D4",
+        "status": "pending",  // pending, under_review, approved, rejected, more_info_needed
+        "restaurant_name": "John's Kitchen",
+        "submitted_at": "2025-12-27T10:00:00",
+        "rejection_reason": null,  // if rejected
+        "moderator_message": null  // if more info needed
+    }
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-info">PUT</strong> <code>/api/registration/update/{request_id}</code>
+                    <p class="text-muted small mb-0">Update a pending registration (same fields as apply)</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded">
+                    <strong class="text-danger">DELETE</strong> <code>/api/registration/cancel/{request_id}</code>
+                    <p class="text-muted small mb-0">Cancel a pending registration request</p>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="menu">
+                <h6>Menu Management (Categories & Items)</h6>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/menu/categories</code>
+                    <p class="text-muted small mb-0">Get all categories for restaurant</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/menu/categories</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "name": "Appetizers",
+    "description": "Starters and small plates",
+    "sort_order": 1
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-info">PUT</strong> <code>/api/menu/categories/{id}</code>
+                    <p class="text-muted small mb-0">Update category</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-danger">DELETE</strong> <code>/api/menu/categories/{id}</code>
+                    <p class="text-muted small mb-0">Delete category</p>
+                </div>
+
+                <hr>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/menu/items</code>
+                    <p class="text-muted small mb-0">Get all menu items</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/menu/items</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "name": "Chicken Wings",
+    "description": "Crispy fried chicken wings",
+    "price": 12.99,
+    "category_id": 1,
+    "is_available": true,
+    "image_url": "https://..."
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-info">PUT</strong> <code>/api/menu/items/{id}</code>
+                    <p class="text-muted small mb-0">Update menu item</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded">
+                    <strong class="text-danger">DELETE</strong> <code>/api/menu/items/{id}</code>
+                    <p class="text-muted small mb-0">Delete menu item</p>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="orders">
+                <h6>Order Management</h6>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/orders</code>
+                    <p class="text-muted small mb-0">Get all orders for restaurant (supports ?status=pending,preparing,completed)</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/orders/{order_id}</code>
+                    <p class="text-muted small mb-0">Get single order details</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-info">PUT</strong> <code>/api/orders/{order_id}/status</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "status": "preparing"  // pending, preparing, ready, completed, cancelled
+}
+                    </pre>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <strong>Real-time Updates:</strong> Connect to WebSocket at <code>/socket.io</code> to receive real-time order notifications.
+                    <br>Events: <code>new_order</code>, <code>order_status_changed</code>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="restaurant">
+                <h6>Restaurant Management</h6>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/restaurants</code>
+                    <p class="text-muted small mb-0">Get restaurant details</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-info">PUT</strong> <code>/api/restaurants</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "name": "Restaurant Name",
+    "description": "Description",
+    "address": "123 Main St",
+    "phone": "+1234567890"
+}
+                    </pre>
+                </div>
+
+                <hr>
+                <h6>Table Management</h6>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/restaurants/tables</code>
+                    <p class="text-muted small mb-0">Get all tables</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/restaurants/tables</code>
+                    <pre class="mb-0 mt-2 text-light">
+{
+    "table_number": 5
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-danger">DELETE</strong> <code>/api/restaurants/tables/{table_number}</code>
+                    <p class="text-muted small mb-0">Delete a table</p>
+                </div>
+
+                <hr>
+                <h6>QR Code Management</h6>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-success">GET</strong> <code>/api/restaurants/qr-code</code>
+                    <p class="text-muted small">Get the restaurant's main QR code</p>
+                    <pre class="mb-0 text-light">
+Response:
+{
+    "success": true,
+    "data": {
+        "restaurant_id": "abc123",
+        "restaurant_name": "My Restaurant",
+        "qr_code_url": "/static/qrcodes/restaurant_abc123_main.png",
+        "menu_url": "/public/restaurant/abc123"
+    }
+}
+                    </pre>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded mb-3">
+                    <strong class="text-warning">POST</strong> <code>/api/restaurants/qr-code/generate</code>
+                    <p class="text-muted small mb-0">Generate or regenerate the restaurant's main QR code</p>
+                </div>
+
+                <div class="bg-dark text-light p-3 rounded">
+                    <strong class="text-warning">POST</strong> <code>/api/restaurants/tables/{table_number}/regenerate-qr</code>
+                    <p class="text-muted small mb-0">Regenerate QR code for a specific table</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create API Key Modal -->
+<div class="modal fade" id="createApiKeyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.create_api_key') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create API Key</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" name="name" class="form-control" required placeholder="e.g., Mobile App Production">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Restaurant *</label>
+                        <select name="restaurant_id" class="form-select" required>
+                            <option value="">Select restaurant</option>
+                            {% for r in restaurants %}
+                            <option value="{{ r.id }}">{{ r.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToken(token) {
+    navigator.clipboard.writeText(token).then(function() {
+        alert('Token copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}
+

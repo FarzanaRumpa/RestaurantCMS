@@ -1,0 +1,138 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2 class="mb-4">System Dashboard</h2>
+
+{% if pending_registrations > 0 %}
+<div class="alert alert-warning d-flex align-items-center mb-4">
+    <i class="bi bi-person-check fs-4 me-3"></i>
+    <div class="flex-grow-1">
+        <strong>{{ pending_registrations }} Registration Request{{ 's' if pending_registrations > 1 else '' }} Pending</strong>
+        <p class="mb-0 small">New restaurant applications are waiting for review.</p>
+    </div>
+    <a href="{{ url_for('admin.registrations') }}" class="btn btn-warning">
+        Review Now <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <h6>Total Restaurants</h6>
+                <h2>{{ total_restaurants }}</h2>
+                <small>All registered</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <h6>Active Restaurants</h6>
+                <h2>{{ active_restaurants }}</h2>
+                <small>Currently active</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <h6>Today's Orders</h6>
+                <h2>{{ today_orders }}</h2>
+                <small>Across all restaurants</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body">
+                <h6>Total Orders</h6>
+                <h2>{{ total_orders }}</h2>
+                <small>All time</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card stat-card bg-secondary text-white">
+            <div class="card-body">
+                <h6>Pending Orders</h6>
+                <h2>{{ pending_orders }}</h2>
+                <small>Awaiting action</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card bg-dark text-white">
+            <div class="card-body">
+                <h6>Total Users</h6>
+                <h2>{{ total_users }}</h2>
+                <small>Restaurant owners</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card bg-light text-dark">
+            <div class="card-body">
+                <h6>Total Tables</h6>
+                <h2>{{ total_tables }}</h2>
+                <small>QR codes generated</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Restaurants</h5>
+                <a href="{{ url_for('admin.restaurants') }}" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead><tr><th>Name</th><th>Owner</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for restaurant in recent_restaurants %}
+                        <tr>
+                            <td>{{ restaurant.name }}</td>
+                            <td>{{ restaurant.owner.username }}</td>
+                            <td><span class="badge bg-{{ 'success' if restaurant.is_active else 'secondary' }}">{{ 'Active' if restaurant.is_active else 'Disabled' }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-muted text-center">No restaurants yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Orders</h5>
+                <a href="{{ url_for('admin.orders') }}" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead><tr><th>Order #</th><th>Restaurant</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for order in recent_orders %}
+                        <tr>
+                            <td><code>{{ order.order_number[:15] }}...</code></td>
+                            <td>{{ order.restaurant.name }}</td>
+                            <td><span class="badge bg-{{ 'warning' if order.status == 'pending' else 'info' if order.status == 'preparing' else 'success' }}">{{ order.status }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-muted text-center">No orders yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
