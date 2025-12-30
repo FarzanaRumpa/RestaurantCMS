@@ -1,0 +1,225 @@
+{% extends "admin/base.html" %}
+{% block title %}Manage Features{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-stars me-2"></i>Features</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFeatureModal">
+        <i class="bi bi-plus-circle me-2"></i>Add Feature
+    </button>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="px-4 py-3">Feature</th>
+                        <th class="py-3">Icon</th>
+                        <th class="py-3">Order</th>
+                        <th class="py-3">Status</th>
+                        <th class="py-3 text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feature in features %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="fw-semibold">{{ feature.title }}</div>
+                            <small class="text-muted">{{ feature.description[:80] }}...</small>
+                        </td>
+                        <td>
+                            {% if feature.icon %}
+                            <i class="{{ feature.icon }} fs-4"></i>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ feature.display_order }}</span>
+                        </td>
+                        <td>
+                            <form action="{{ url_for('admin.toggle_feature', id=feature.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-{{ 'success' if feature.is_active else 'secondary' }}">
+                                    <i class="bi bi-{{ 'check-circle' if feature.is_active else 'x-circle' }}"></i>
+                                    {{ 'Active' if feature.is_active else 'Inactive' }}
+                                </button>
+                            </form>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="editFeature({{ feature.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteFeature({{ feature.id }}, '{{ feature.title }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            <p class="mb-0">No features yet. Create your first one!</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createFeatureModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.create_feature') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Create Feature</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" class="form-control" required maxlength="200">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description *</label>
+                        <textarea name="description" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Icon Class (Bootstrap Icons)</label>
+                            <input type="text" name="icon" class="form-control" placeholder="bi-qr-code">
+                            <small class="text-muted">Example: bi-qr-code, bi-phone, bi-graph-up</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Display Order</label>
+                            <input type="number" name="display_order" class="form-control" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Link (optional)</label>
+                        <input type="text" name="link" class="form-control" placeholder="/features/details">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="is_active" class="form-select">
+                            <option value="1" selected>Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Feature</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editFeatureModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editFeatureForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Feature</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" id="edit_title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description *</label>
+                        <textarea name="description" id="edit_description" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Icon Class</label>
+                            <input type="text" name="icon" id="edit_icon" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Display Order</label>
+                            <input type="number" name="display_order" id="edit_display_order" class="form-control" min="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Link</label>
+                        <input type="text" name="link" id="edit_link" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="is_active" id="edit_is_active" class="form-select">
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Feature</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editFeature(id) {
+    fetch(`/api/website-content/features/${id}`, {
+        credentials: 'include'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Feature data:', data); // Debug log
+
+        // Access the data directly (it's not wrapped in a 'data' property)
+        document.getElementById('edit_title').value = data.title || '';
+        document.getElementById('edit_description').value = data.description || '';
+        document.getElementById('edit_icon').value = data.icon || '';
+        document.getElementById('edit_display_order').value = data.display_order || 0;
+        document.getElementById('edit_link').value = data.link || '';
+        document.getElementById('edit_is_active').value = data.is_active ? '1' : '0';
+
+        document.getElementById('editFeatureForm').action = `/rock/features/${id}/edit`;
+        new bootstrap.Modal(document.getElementById('editFeatureModal')).show();
+    })
+    .catch(error => {
+        console.error('Error loading feature:', error);
+        alert('Error loading feature: ' + error.message);
+    });
+}
+
+function deleteFeature(id, title) {
+    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+        fetch(`/api/website-content/features/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            alert('Error deleting feature');
+            console.error(error);
+        });
+    }
+}
+</script>
+
+{% endblock %}
+

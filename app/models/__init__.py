@@ -324,3 +324,15 @@ class ModerationLog(db.Model):
         }
 
 
+# Import public models
+from app.models.public_models import PublicView, PublicFeedback, PublicMenuClick, PublicSearchLog
+
+# Import website content models
+from app.models.website_content_models import (
+    HeroSection, Feature, HowItWorksStep, PricingPlan,
+    Testimonial, FAQ, ContactInfo, FooterLink, FooterContent, SocialMediaLink
+)
+
+# Import contact form models
+from app.models.contact_models import ContactMessage
+

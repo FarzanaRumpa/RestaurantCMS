@@ -264,6 +264,310 @@ def dashboard():
         recent_orders=recent_orders
     )
 
+@admin_bp.route('/public')
+@admin_required
+def public():
+    """Public section - accessible to all admin roles"""
+    user = get_current_admin_user()
+
+    # Redirect restaurant owners to their restaurant page
+    if user.role == 'restaurant_owner':
+        return redirect(url_for('admin.restaurant_owner_view'))
+
+    # Get contact messages stats
+    from app.models.contact_models import ContactMessage
+    new_messages = ContactMessage.query.filter_by(status='new').count()
+
+    return render_template('admin/public.html',
+        new_messages=new_messages
+    )
+
+@admin_bp.route('/contact-messages')
+@admin_required
+def contact_messages():
+    """View and manage contact form submissions"""
+    from app.models.contact_models import ContactMessage
+
+    # Get filter parameters
+    status = request.args.get('status', 'all')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    # Build query
+    query = ContactMessage.query
+
+    if status == 'new':
+        query = query.filter_by(status='new')
+    elif status == 'read':
+        query = query.filter_by(status='read')
+    elif status == 'replied':
+        query = query.filter_by(status='replied')
+    elif status == 'spam':
+        query = query.filter_by(is_spam=True)
+    elif status == 'not_spam':
+        query = query.filter_by(is_spam=False)
+
+    # Paginate
+    pagination = query.order_by(ContactMessage.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    # Get stats
+    stats = {
+        'total': ContactMessage.query.count(),
+        'new': ContactMessage.query.filter_by(status='new').count(),
+        'read': ContactMessage.query.filter_by(status='read').count(),
+        'replied': ContactMessage.query.filter_by(status='replied').count(),
+        'spam': ContactMessage.query.filter_by(is_spam=True).count()
+    }
+
+    return render_template('admin/contact_messages.html',
+        messages=pagination.items,
+        pagination=pagination,
+        stats=stats,
+        current_status=status
+    )
+
+@admin_bp.route('/contact-messages/<int:id>')
+@admin_required
+def view_contact_message(id):
+    """View single contact message"""
+    from app.models.contact_models import ContactMessage
+
+    message = ContactMessage.query.get_or_404(id)
+
+    # Mark as read if it's new
+    if message.status == 'new':
+        message.status = 'read'
+        db.session.commit()
+
+    return render_template('admin/contact_message_detail.html', message=message)
+
+@admin_bp.route('/contact-messages/<int:id>/update-status', methods=['POST'])
+@admin_required
+def update_message_status(id):
+    """Update contact message status"""
+    from app.models.contact_models import ContactMessage
+
+    message = ContactMessage.query.get_or_404(id)
+    new_status = request.form.get('status')
+
+    if new_status in ['new', 'read', 'replied', 'archived', 'spam']:
+        message.status = new_status
+
+        if new_status == 'replied':
+            user = get_current_admin_user()
+            message.replied_at = datetime.utcnow()
+            message.replied_by_id = user.id
+
+        db.session.commit()
+        flash(f'Message status updated to {new_status}', 'success')
+    else:
+        flash('Invalid status', 'error')
+
+    return redirect(url_for('admin.view_contact_message', id=id))
+
+@admin_bp.route('/contact-messages/<int:id>/add-note', methods=['POST'])
+@admin_required
+def add_message_note(id):
+    """Add admin note to contact message"""
+    from app.models.contact_models import ContactMessage
+
+    message = ContactMessage.query.get_or_404(id)
+    note = request.form.get('note')
+
+    if note and note.strip():
+        message.admin_notes = note.strip()
+        db.session.commit()
+        flash('Note added successfully', 'success')
+    else:
+        flash('Note cannot be empty', 'error')
+
+    return redirect(url_for('admin.view_contact_message', id=id))
+
+@admin_bp.route('/contact-messages/<int:id>/mark-spam', methods=['POST'])
+@admin_required
+def mark_message_spam(id):
+    """Mark/unmark message as spam"""
+    from app.models.contact_models import ContactMessage
+
+    message = ContactMessage.query.get_or_404(id)
+    message.is_spam = not message.is_spam
+
+    if message.is_spam:
+        message.status = 'spam'
+        flash('Message marked as spam', 'success')
+    else:
+        message.status = 'read'
+        flash('Message unmarked as spam', 'success')
+
+    db.session.commit()
+    return redirect(url_for('admin.view_contact_message', id=id))
+
+@admin_bp.route('/contact-messages/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_contact_message(id):
+    """Delete contact message"""
+    from app.models.contact_models import ContactMessage
+
+    message = ContactMessage.query.get_or_404(id)
+    db.session.delete(message)
+    db.session.commit()
+
+    flash('Message deleted successfully', 'success')
+    return redirect(url_for('admin.contact_messages'))
+
+# ============================================================================
+# WEBSITE CONTENT MANAGEMENT ROUTES
+# ============================================================================
+
+@admin_bp.route('/hero-sections')
+@admin_required
+def hero_sections():
+    """Manage hero sections"""
+    from app.models.website_content_models import HeroSection
+    hero_sections = HeroSection.query.order_by(HeroSection.display_order, HeroSection.created_at.desc()).all()
+    return render_template('admin/website_content/hero_sections.html', hero_sections=hero_sections)
+
+@admin_bp.route('/hero-sections/create', methods=['POST'])
+@admin_required
+def create_hero_section():
+    """Create new hero section"""
+    from app.models.website_content_models import HeroSection
+    user = get_current_admin_user()
+
+    hero = HeroSection(
+        title=request.form.get('title'),
+        subtitle=request.form.get('subtitle'),
+        cta_text=request.form.get('cta_text'),
+        cta_link=request.form.get('cta_link'),
+        background_image=request.form.get('background_image'),
+        display_order=int(request.form.get('display_order', 0)),
+        is_active=request.form.get('is_active') == '1',
+        created_by_id=user.id
+    )
+    db.session.add(hero)
+    db.session.commit()
+    flash('Hero section created successfully', 'success')
+    return redirect(url_for('admin.hero_sections'))
+
+@admin_bp.route('/hero-sections/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_hero_section(id):
+    """Edit hero section"""
+    from app.models.website_content_models import HeroSection
+    hero = HeroSection.query.get_or_404(id)
+
+    hero.title = request.form.get('title')
+    hero.subtitle = request.form.get('subtitle')
+    hero.cta_text = request.form.get('cta_text')
+    hero.cta_link = request.form.get('cta_link')
+    hero.display_order = int(request.form.get('display_order', 0))
+    hero.is_active = request.form.get('is_active') == '1'
+
+    # Handle file upload
+    if 'background_image_file' in request.files:
+        file = request.files['background_image_file']
+        if file and file.filename:
+            # Validate file extension
+            allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+            if ext in allowed_extensions:
+                # Create unique filename
+                unique_filename = f"hero_{uuid.uuid4().hex}_{filename}"
+
+                # Ensure upload directory exists
+                upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'hero')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                # Save file
+                filepath = os.path.join(upload_dir, unique_filename)
+                file.save(filepath)
+
+                # Set background_image to the URL path
+                hero.background_image = f"/static/uploads/hero/{unique_filename}"
+
+    # If URL is provided and no file uploaded, use URL
+    if not hero.background_image or (request.form.get('background_image') and 'background_image_file' not in request.files):
+        url_image = request.form.get('background_image')
+        if url_image:
+            hero.background_image = url_image
+
+    db.session.commit()
+    flash('Hero section updated successfully', 'success')
+    return redirect(url_for('admin.hero_sections'))
+
+@admin_bp.route('/hero-sections/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_hero_section(id):
+    """Toggle hero section status"""
+    from app.models.website_content_models import HeroSection
+    hero = HeroSection.query.get_or_404(id)
+    hero.is_active = not hero.is_active
+    db.session.commit()
+    flash(f'Hero section {"activated" if hero.is_active else "deactivated"}', 'success')
+    return redirect(url_for('admin.hero_sections'))
+
+@admin_bp.route('/features')
+@admin_required
+def features():
+    """Manage features"""
+    from app.models.website_content_models import Feature
+    features = Feature.query.order_by(Feature.display_order, Feature.created_at.desc()).all()
+    return render_template('admin/website_content/features.html', features=features)
+
+@admin_bp.route('/features/create', methods=['POST'])
+@admin_required
+def create_feature():
+    """Create new feature"""
+    from app.models.website_content_models import Feature
+    user = get_current_admin_user()
+
+    feature = Feature(
+        title=request.form.get('title'),
+        description=request.form.get('description'),
+        icon=request.form.get('icon'),
+        link=request.form.get('link'),
+        display_order=int(request.form.get('display_order', 0)),
+        is_active=request.form.get('is_active') == '1',
+        created_by_id=user.id
+    )
+    db.session.add(feature)
+    db.session.commit()
+    flash('Feature created successfully', 'success')
+    return redirect(url_for('admin.features'))
+
+@admin_bp.route('/features/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_feature(id):
+    """Edit feature"""
+    from app.models.website_content_models import Feature
+    feature = Feature.query.get_or_404(id)
+
+    feature.title = request.form.get('title')
+    feature.description = request.form.get('description')
+    feature.icon = request.form.get('icon')
+    feature.link = request.form.get('link')
+    feature.display_order = int(request.form.get('display_order', 0))
+    feature.is_active = request.form.get('is_active') == '1'
+
+    db.session.commit()
+    flash('Feature updated successfully', 'success')
+    return redirect(url_for('admin.features'))
+
+@admin_bp.route('/features/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_feature(id):
+    """Toggle feature status"""
+    from app.models.website_content_models import Feature
+    feature = Feature.query.get_or_404(id)
+    feature.is_active = not feature.is_active
+    db.session.commit()
+    flash(f'Feature {"activated" if feature.is_active else "deactivated"}', 'success')
+    return redirect(url_for('admin.features'))
+
 @admin_bp.route('/restaurants')
 @permission_required('restaurants')
 def restaurants():
@@ -1434,4 +1738,178 @@ def registration_stats():
         moderator_stats=moderator_stats,
         daily_stats=daily_stats
     )
+
+
+# ============================================================================
+# MEDIA & THEME MANAGEMENT ROUTES
+# ============================================================================
+
+@admin_bp.route('/media-theme')
+@admin_required
+def media_theme():
+    """Media and theme management page"""
+    from app.models.website_media_models import WebsiteMedia, WebsiteTheme, WebsiteBanner
+
+    theme = WebsiteTheme.query.filter_by(is_active=True).first()
+    media_items = WebsiteMedia.query.order_by(WebsiteMedia.created_at.desc()).all()
+    banners = WebsiteBanner.query.order_by(WebsiteBanner.display_order).all()
+
+    return render_template('admin/media_theme.html',
+        theme=theme,
+        media_items=media_items,
+        banners=banners
+    )
+
+
+@admin_bp.route('/save-theme', methods=['POST'])
+@admin_required
+def save_theme():
+    """Save theme settings"""
+    from app.models.website_media_models import WebsiteTheme
+
+    user = get_current_admin_user()
+    theme = WebsiteTheme.query.filter_by(is_active=True).first()
+
+    if not theme:
+        theme = WebsiteTheme(name='Default Theme', is_active=True, created_by_id=user.id)
+        db.session.add(theme)
+
+    theme.hero_bg_type = request.form.get('hero_bg_type', 'gradient')
+    theme.hero_gradient_start = request.form.get('hero_gradient_start', '#6366f1')
+    theme.hero_gradient_middle = request.form.get('hero_gradient_middle', '#8b5cf6')
+    theme.hero_gradient_end = request.form.get('hero_gradient_end', '#ec4899')
+    theme.hero_text_color = request.form.get('hero_text_color', '#ffffff')
+    theme.primary_color = request.form.get('primary_color', '#6366f1')
+    theme.secondary_color = request.form.get('secondary_color', '#ec4899')
+    theme.accent_color = request.form.get('accent_color', '#06b6d4')
+    theme.body_bg_color = request.form.get('body_bg_color', '#ffffff')
+    theme.section_bg_light = request.form.get('section_bg_light', '#f8fafc')
+    theme.section_bg_dark = request.form.get('section_bg_dark', '#1e1b4b')
+    theme.text_primary = request.form.get('text_primary', '#334155')
+    theme.text_secondary = request.form.get('text_secondary', '#64748b')
+    theme.footer_bg_color = request.form.get('footer_bg_color', '#1e1b4b')
+    theme.footer_text_color = request.form.get('footer_text_color', '#94a3b8')
+    theme.logo_text = request.form.get('logo_text', 'RestaurantPro')
+
+    db.session.commit()
+    flash('Theme settings saved successfully!', 'success')
+    return redirect(url_for('admin.media_theme'))
+
+
+@admin_bp.route('/upload-media', methods=['POST'])
+@admin_required
+def upload_media():
+    """Upload media file"""
+    from app.models.website_media_models import WebsiteMedia
+
+    if 'file' not in request.files or request.files['file'].filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('admin.media_theme'))
+
+    file = request.files['file']
+    upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'media')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+
+    user = get_current_admin_user()
+    media = WebsiteMedia(
+        name=request.form.get('name', file.filename),
+        file_path=f"/static/uploads/media/{filename}",
+        file_type='image',
+        mime_type=file.content_type,
+        file_size=os.path.getsize(filepath),
+        alt_text=request.form.get('alt_text', ''),
+        category=request.form.get('category', 'gallery'),
+        uploaded_by_id=user.id
+    )
+
+    db.session.add(media)
+    db.session.commit()
+    flash('Media uploaded successfully!', 'success')
+    return redirect(url_for('admin.media_theme'))
+
+
+@admin_bp.route('/media/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_media(id):
+    """Delete media file"""
+    from app.models.website_media_models import WebsiteMedia
+
+    media = WebsiteMedia.query.get_or_404(id)
+    filepath = os.path.join(current_app.root_path, media.file_path.lstrip('/'))
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
+    db.session.delete(media)
+    db.session.commit()
+    flash('Media deleted!', 'success')
+    return redirect(url_for('admin.media_theme'))
+
+
+@admin_bp.route('/create-banner', methods=['POST'])
+@admin_required
+def create_banner():
+    """Create a new banner"""
+    from app.models.website_media_models import WebsiteBanner
+
+    user = get_current_admin_user()
+    banner = WebsiteBanner(
+        name=request.form.get('name'),
+        section=request.form.get('section'),
+        title=request.form.get('title'),
+        subtitle=request.form.get('subtitle'),
+        cta_text=request.form.get('cta_text'),
+        cta_link=request.form.get('cta_link'),
+        bg_type=request.form.get('bg_type', 'gradient'),
+        bg_gradient_start=request.form.get('bg_gradient_start', '#6366f1'),
+        bg_gradient_end=request.form.get('bg_gradient_end', '#ec4899'),
+        text_color=request.form.get('text_color', '#ffffff'),
+        is_active=True,
+        created_by_id=user.id
+    )
+
+    db.session.add(banner)
+    db.session.commit()
+    flash('Banner created successfully!', 'success')
+    return redirect(url_for('admin.media_theme'))
+
+
+@admin_bp.route('/banners/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_banner(id):
+    """Delete a banner"""
+    from app.models.website_media_models import WebsiteBanner
+
+    banner = WebsiteBanner.query.get_or_404(id)
+    db.session.delete(banner)
+    db.session.commit()
+    flash('Banner deleted!', 'success')
+    return redirect(url_for('admin.media_theme'))
+
+
+@admin_bp.route('/api/theme')
+def get_active_theme():
+    """Get active theme settings (public API)"""
+    from app.models.website_media_models import WebsiteTheme
+
+    theme = WebsiteTheme.query.filter_by(is_active=True).first()
+    if theme:
+        return jsonify({'success': True, 'data': theme.to_dict()})
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'hero_bg_type': 'gradient',
+            'hero_gradient_start': '#6366f1',
+            'hero_gradient_middle': '#8b5cf6',
+            'hero_gradient_end': '#ec4899',
+            'primary_color': '#6366f1',
+            'logo_text': 'RestaurantPro'
+        }
+    })
+
 

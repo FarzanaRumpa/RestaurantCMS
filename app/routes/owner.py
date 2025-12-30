@@ -1,6 +1,6 @@
 """
 Restaurant Owner Routes - Completely separate from admin system
-URL Prefix: /owner
+URL Pattern: /<restaurant_id>/* for each restaurant
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g
 from functools import wraps
@@ -8,7 +8,7 @@ from app import db
 from app.models import User, Restaurant, Order, Category, Table, MenuItem
 from datetime import datetime
 
-owner_bp = Blueprint('owner', __name__, url_prefix='/owner')
+owner_bp = Blueprint('owner', __name__)
 
 
 def get_current_owner():
@@ -34,18 +34,28 @@ def owner_required(f):
             flash('Session expired. Please login again', 'info')
             return redirect(url_for('owner.login'))
         g.owner = user
+
+        # Verify restaurant ID if provided in URL
+        restaurant_id = kwargs.get('restaurant_id')
+        if restaurant_id and user.restaurant:
+            if str(user.restaurant.id) != str(restaurant_id):
+                flash('Access denied. You can only access your own restaurant.', 'error')
+                return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
+
         return f(*args, **kwargs)
     return decorated_function
 
 
-@owner_bp.route('/login', methods=['GET', 'POST'])
+@owner_bp.route('/owner/login', methods=['GET', 'POST'])
 def login():
     """Restaurant owner login - completely separate from admin"""
     # If already logged in, redirect to dashboard
     if session.get('owner_logged_in'):
         user = get_current_owner()
-        if user:
-            return redirect(url_for('owner.dashboard'))
+        if user and user.restaurant:
+            return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
+        elif user:
+            return redirect(url_for('owner.no_restaurant'))
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -69,14 +79,19 @@ def login():
             session['owner_user_id'] = user.id
 
             flash(f'Welcome back, {user.username}!', 'success')
-            return redirect(url_for('owner.dashboard'))
+
+            # Redirect to restaurant-specific dashboard
+            if user.restaurant:
+                return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
+            else:
+                return redirect(url_for('owner.no_restaurant'))
 
         flash('Invalid username or password', 'error')
 
     return render_template('owner/login.html')
 
 
-@owner_bp.route('/logout')
+@owner_bp.route('/owner/logout')
 def logout():
     """Restaurant owner logout"""
     session.pop('owner_logged_in', None)
@@ -85,7 +100,77 @@ def logout():
     return redirect(url_for('owner.login'))
 
 
-@owner_bp.route('/forgot-password', methods=['GET', 'POST'])
+@owner_bp.route('/owner/signup', methods=['POST'])
+def signup():
+    """Restaurant owner signup"""
+    try:
+        # Get form data
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        phone = request.form.get('phone', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        restaurant_name = request.form.get('restaurant_name', '').strip()
+        address = request.form.get('address', '').strip()
+        description = request.form.get('description', '').strip()
+
+        # Validation
+        if not all([username, email, phone, password, restaurant_name]):
+            flash('Please fill in all required fields', 'error')
+            return redirect(url_for('owner.login') + '?signup=1')
+
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return redirect(url_for('owner.login') + '?signup=1')
+
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return redirect(url_for('owner.login') + '?signup=1')
+
+        # Check if username exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists. Please choose another one.', 'error')
+            return redirect(url_for('owner.login') + '?signup=1')
+
+        # Check if email exists
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered. Please use another email.', 'error')
+            return redirect(url_for('owner.login') + '?signup=1')
+
+        # Create new user
+        new_user = User(
+            username=username,
+            email=email,
+            phone=phone,
+            role='restaurant_owner',
+            is_active=True  # Auto-activate for now, you can set to False for admin approval
+        )
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.flush()  # To get the user ID
+
+        # Create restaurant
+        new_restaurant = Restaurant(
+            name=restaurant_name,
+            address=address,
+            description=description,
+            phone=phone,
+            owner_id=new_user.id,
+            is_active=True
+        )
+        db.session.add(new_restaurant)
+        db.session.commit()
+
+        flash('Account created successfully! You can now login.', 'success')
+        return redirect(url_for('owner.login'))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred during registration: {str(e)}', 'error')
+        return redirect(url_for('owner.login') + '?signup=1')
+
+
+@owner_bp.route('/owner/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     """Forgot password page"""
     if request.method == 'POST':
@@ -103,9 +188,17 @@ def forgot_password():
     return render_template('owner/forgot_password.html')
 
 
-@owner_bp.route('/dashboard')
+@owner_bp.route('/owner/no-restaurant')
 @owner_required
-def dashboard():
+def no_restaurant():
+    """Show message when owner has no restaurant assigned"""
+    user = get_current_owner()
+    return render_template('owner/no_restaurant.html', user=user)
+
+
+@owner_bp.route('/<int:restaurant_id>/dashboard')
+@owner_required
+def dashboard(restaurant_id):
     """Restaurant owner dashboard - view only their own restaurant"""
     user = get_current_owner()
 

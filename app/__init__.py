@@ -1,4 +1,4 @@
-﻿from flask import Flask
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -8,22 +8,27 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
 import os
+
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 socketio = SocketIO()
 csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address)
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
     os.makedirs(app.config['QR_CODE_FOLDER'], exist_ok=True)
+
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     csrf.init_app(app)
     limiter.init_app(app)
+
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
     from app.routes.owner import owner_bp
@@ -32,24 +37,38 @@ def create_app(config_class=Config):
     from app.routes.orders import orders_bp
     from app.routes.public import public_bp
     from app.routes.registration import registration_bp
+    from app.routes.public_content_api import public_content_api  # Public website content API
+    from app.routes.website_content_api import website_content_api  # Admin content management API
+
     csrf.exempt(auth_bp)
     csrf.exempt(restaurants_bp)
     csrf.exempt(menu_bp)
     csrf.exempt(orders_bp)
     csrf.exempt(public_bp)
     csrf.exempt(registration_bp)
+    csrf.exempt(public_content_api)
+
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(owner_bp)  # URL prefix /owner is defined in blueprint
+    app.register_blueprint(admin_bp, url_prefix='/rock')
+    app.register_blueprint(owner_bp, url_prefix='')
     app.register_blueprint(restaurants_bp, url_prefix='/api/restaurants')
     app.register_blueprint(menu_bp, url_prefix='/api/menu')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
-    app.register_blueprint(public_bp)  # No prefix - for clean /menu/{id} URLs
+    app.register_blueprint(public_bp)
     app.register_blueprint(registration_bp, url_prefix='/api/registration')
+    app.register_blueprint(public_content_api, url_prefix='/api')  # Public content API
+    app.register_blueprint(website_content_api, url_prefix='/api')  # Admin content API
+
     from app.models import User, Restaurant, Table, Category, MenuItem, Order, OrderItem, RegistrationRequest, ModerationLog
+
     with app.app_context():
         db.create_all()
         create_admin_user(app)
+
+        # Seed default website content on first run
+        from app.seed_data import check_if_seeded, seed_all_website_content
+        if not check_if_seeded():
+            seed_all_website_content()
 
     # Role permissions mapping
     ROLE_PERMISSIONS = {
@@ -85,6 +104,7 @@ def create_app(config_class=Config):
         return context
 
     return app
+
 def create_admin_user(app):
     from app.models import User
     admin = User.query.filter_by(role='system_admin').first()
@@ -97,3 +117,4 @@ def create_admin_user(app):
         admin.set_password(app.config['ADMIN_PASSWORD'])
         db.session.add(admin)
         db.session.commit()
+

@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% block title %}Public{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h2 class="mb-1"><i class="bi bi-globe2 me-2"></i>Public Section</h2>
+    <p class="text-muted">Manage your public-facing website content</p>
+</div>
+
+<!-- Website Content Management Cards -->
+<div class="row g-4">
+    <!-- Hero Sections Card -->
+    <div class="col-md-4">
+        <a href="{{ url_for('admin.hero_sections') }}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm h-100" style="transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)'">
+                <div class="card-body text-center py-5">
+                    <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+                        <i class="bi bi-image fs-1 text-primary"></i>
+                    </div>
+                    <h5 class="text-dark mb-2">Hero Sections</h5>
+                    <p class="text-muted mb-0 small">Manage homepage banners, titles, subtitles, and call-to-action buttons</p>
+                </div>
+                <div class="card-footer bg-primary text-white text-center py-3 border-0">
+                    <i class="bi bi-arrow-right me-2"></i>Manage Hero Sections
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Features Card -->
+    <div class="col-md-4">
+        <a href="{{ url_for('admin.features') }}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm h-100" style="transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)'">
+                <div class="card-body text-center py-5">
+                    <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+                        <i class="bi bi-stars fs-1 text-success"></i>
+                    </div>
+                    <h5 class="text-dark mb-2">Features</h5>
+                    <p class="text-muted mb-0 small">Manage platform features and highlights shown on public pages</p>
+                </div>
+                <div class="card-footer bg-success text-white text-center py-3 border-0">
+                    <i class="bi bi-arrow-right me-2"></i>Manage Features
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Contact Messages Card -->
+    <div class="col-md-4">
+        <a href="{{ url_for('admin.contact_messages') }}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm h-100" style="transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)'">
+                <div class="card-body text-center py-5">
+                    <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+                        <i class="bi bi-envelope fs-1 text-warning"></i>
+                    </div>
+                    <h5 class="text-dark mb-2">Contact Messages</h5>
+                    <p class="text-muted mb-0 small">View and manage messages received from the contact form</p>
+                    {% if new_messages is defined and new_messages > 0 %}
+                    <span class="badge bg-danger mt-3">{{ new_messages }} New</span>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-warning text-dark text-center py-3 border-0">
+                    <i class="bi bi-arrow-right me-2"></i>View Messages
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+{% endblock %}
