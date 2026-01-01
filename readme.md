@@ -231,5 +231,6 @@ For support, email: support@yourrestaurant.com
 
 ---
 
-Built with ❤️ for restaurant owners
+Built with ❤️ for restaurant owners.
+Thanks
 
