@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from functools import wraps
 from app import db
 from app.models import User, Restaurant, Order, Category, Table, MenuItem
+from app.services.qr_service import generate_restaurant_qr_code
 from datetime import datetime
 
 owner_bp = Blueprint('owner', __name__)
@@ -258,6 +259,28 @@ def dashboard(restaurant_id):
         tables=tables,
         recent_orders=recent_orders
     )
+
+
+@owner_bp.route('/<int:restaurant_id>/generate-qr', methods=['POST'])
+@owner_required
+def generate_qr(restaurant_id):
+    """Generate QR code for the restaurant"""
+    user = get_current_owner()
+
+    if not user.restaurant or user.restaurant.id != restaurant_id:
+        flash('Access denied', 'error')
+        return redirect(url_for('owner.login'))
+
+    restaurant = user.restaurant
+    try:
+        qr_filename = generate_restaurant_qr_code(restaurant.public_id, restaurant.name)
+        restaurant.qr_code_path = qr_filename
+        db.session.commit()
+        flash('QR code generated successfully!', 'success')
+    except Exception as e:
+        flash(f'Error generating QR code: {str(e)}', 'error')
+
+    return redirect(url_for('owner.dashboard', restaurant_id=restaurant_id))
 
 
 @owner_bp.route('/orders')
@@ -717,7 +740,7 @@ def kitchen_screen():
         ).count(),
     }
 
-    return render_template('owner/kitchen_dashboard_v2.html',
+    return render_template('owner/kitchen_screen.html',
         user=user,
         restaurant=user.restaurant,
         orders=orders,

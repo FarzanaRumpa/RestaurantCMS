@@ -670,10 +670,22 @@
                             <i class="bi bi-download"></i>
                             Download QR Code
                         </a>
+                        <form action="{{ url_for('owner.generate_qr', restaurant_id=restaurant.id) }}" method="POST" class="mt-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Regenerate
+                            </button>
+                        </form>
                         {% else %}
                         <div class="empty-state">
                             <i class="bi bi-qr-code"></i>
                             <p>No QR code generated yet</p>
+                            <form action="{{ url_for('owner.generate_qr', restaurant_id=restaurant.id) }}" method="POST" class="mt-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg"></i> Generate QR Code
+                                </button>
+                            </form>
                         </div>
                         {% endif %}
                     </div>

@@ -15,14 +15,14 @@ class Config:
 
     WTF_CSRF_ENABLED = True
 
-    ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
+    ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'SuperAdmin')
+    ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '123456')
     ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@system.local')
 
     QR_CODE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'static', 'qrcodes')
 
-    # Base URL for QR codes - use local network IP for testing from phone
-    BASE_URL = os.getenv('BASE_URL', 'http://192.168.100.129:5000')
+    # Base URL for QR codes - update this for production
+    BASE_URL = os.getenv('BASE_URL', 'http://127.0.0.1:8000')
 
     RATELIMIT_DEFAULT = "200 per day"
     RATELIMIT_STORAGE_URL = "memory://"
