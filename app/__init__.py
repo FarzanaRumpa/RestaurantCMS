@@ -47,6 +47,7 @@ def create_app(config_class=Config):
     csrf.exempt(public_bp)
     csrf.exempt(registration_bp)
     csrf.exempt(public_content_api)
+    csrf.exempt(owner_bp)  # Exempt owner API routes for kitchen/customer screen
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/rock')

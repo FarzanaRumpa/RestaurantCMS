@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Kitchen Dashboard - {{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b34;
+            --bg-card: #1a2342;
+            --accent-orange: #ff6b35;
+            --accent-blue: #4facfe;
+            --accent-green: #00f5a0;
+            --accent-purple: #a855f7;
+            --accent-yellow: #fbbf24;
+            --accent-red: #ef4444;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(255,255,255,0.1);
+            --shadow-lg: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .kitchen-header {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .kitchen-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .kitchen-logo i {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--accent-orange), #ff8c42);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .kitchen-logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .kitchen-logo span {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .stat-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-badge .icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .stat-badge.pending .icon {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--accent-orange);
+        }
+
+        .stat-badge.preparing .icon {
+            background: rgba(79, 172, 254, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .stat-badge.ready .icon {
+            background: rgba(0, 245, 160, 0.2);
+            color: var(--accent-green);
+        }
+
+        .stat-badge .info .count {
+            font-size: 1.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-badge .info .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .current-time {
+            font-size: 1.75rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-secondary);
+        }
+
+        .btn-back {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-back:hover {
+            background: rgba(255,255,255,0.15);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Main Content */
+        .kitchen-main {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            padding: 1.5rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* Order Column */
+        .order-column {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+        }
+
+        .column-header {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .column-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 0;
+        }
+
+        .column-header.pending h2 { color: var(--accent-orange); }
+        .column-header.preparing h2 { color: var(--accent-blue); }
+        .column-header.ready h2 { color: var(--accent-green); }
+
+        .column-count {
+            background: rgba(255,255,255,0.1);
+            padding: 0.375rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .orders-list {
+            flex: 1;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+
+        /* Order Card */
+        .order-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .order-card.pending { border-color: var(--accent-orange); }
+        .order-card.preparing { border-color: var(--accent-blue); }
+        .order-card.ready { border-color: var(--accent-green); }
+
+        .order-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .order-top {
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .order-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .order-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .order-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .table-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .order-items {
+            padding: 1rem 1.25rem;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: flex-start;
+            padding: 0.625rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .item-qty {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            min-width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.9rem;
+            margin-right: 1rem;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .item-notes {
+            font-size: 0.8rem;
+            color: var(--accent-orange);
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+        .order-actions {
+            padding: 1rem 1.25rem;
+            display: flex;
+            gap: 0.75rem;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 0.875rem 1rem;
+            border-radius: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--accent-blue), #00c4ff);
+            color: white;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-ready {
+            background: linear-gradient(135deg, var(--accent-green), #00d68f);
+            color: #0f0f1a;
+        }
+
+        .btn-ready:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 245, 160, 0.3);
+        }
+
+        .btn-complete {
+            background: linear-gradient(135deg, var(--accent-purple), #c084fc);
+            color: white;
+        }
+
+        .btn-complete:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(168, 85, 247, 0.3);
+        }
+
+        /* Empty State */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 26, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1100;
+        }
+
+        .toast-message {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-green);
+            color: var(--text-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-message.error {
+            border-color: #ef4444;
+        }
+
+        .toast-message i {
+            font-size: 1.25rem;
+            color: var(--accent-green);
+        }
+
+        .toast-message.error i {
+            color: #ef4444;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Sync Indicator */
+        .sync-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .kitchen-main {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .kitchen-main {
+                grid-template-columns: 1fr;
+            }
+
+            .header-stats {
+                display: none;
+            }
+
+            .kitchen-header {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .kitchen-header {
+                padding: 1rem;
+            }
+
+            .kitchen-main {
+                padding: 1rem;
+            }
+
+            .kitchen-logo h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Scrollbar */
+        .orders-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .orders-list::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 3px;
+        }
+
+        .orders-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .orders-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <header class="kitchen-header">
+        <div class="kitchen-logo">
+            <i class="bi bi-fire"></i>
+            <div>
+                <h1>Kitchen Display</h1>
+                <span>{{ restaurant.name }}</span>
+            </div>
+        </div>
+
+        <div class="header-stats">
+            <div class="stat-badge pending">
+                <div class="icon"><i class="bi bi-clock-fill"></i></div>
+                <div class="info">
+                    <div class="count" id="statPending">{{ stats.pending }}</div>
+                    <div class="label">Pending</div>
+                </div>
+            </div>
+            <div class="stat-badge preparing">
+                <div class="icon"><i class="bi bi-fire"></i></div>
+                <div class="info">
+                    <div class="count" id="statPreparing">{{ stats.preparing }}</div>
+                    <div class="label">Preparing</div>
+                </div>
+            </div>
+            <div class="stat-badge ready">
+                <div class="icon"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="info">
+                    <div class="count" id="statReady">{{ stats.ready }}</div>
+                    <div class="label">Ready</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="sync-indicator">
+                <span class="sync-dot"></span>
+                <span>Live</span>
+            </div>
+            <div class="current-time" id="currentTime"></div>
+            <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="btn-back">
+                <i class="bi bi-arrow-left"></i>Dashboard
+            </a>
+        </div>
+    </header>
+
+    <main class="kitchen-main">
+        <!-- Pending Orders Column -->
+        <section class="order-column">
+            <div class="column-header pending">
+                <h2><i class="bi bi-clock-fill"></i> New Orders</h2>
+                <span class="column-count" id="pendingCount">0</span>
+            </div>
+            <div class="orders-list" id="pendingOrders">
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>No pending orders</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Preparing Orders Column -->
+        <section class="order-column">
+            <div class="column-header preparing">
+                <h2><i class="bi bi-fire"></i> Preparing</h2>
+                <span class="column-count" id="preparingCount">0</span>
+            </div>
+            <div class="orders-list" id="preparingOrders">
+                <div class="empty-state">
+                    <i class="bi bi-fire"></i>
+                    <p>No orders cooking</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ready Orders Column -->
+        <section class="order-column">
+            <div class="column-header ready">
+                <h2><i class="bi bi-check-circle-fill"></i> Ready to Serve</h2>
+                <span class="column-count" id="readyCount">0</span>
+            </div>
+            <div class="orders-list" id="readyOrders">
+                <div class="empty-state">
+                    <i class="bi bi-bag-check"></i>
+                    <p>No orders ready</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        const csrfToken = "{{ csrf_token() }}";
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent =
+                now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Toast notification
+        function showToast(message, isError = false) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${isError ? 'error' : ''}`;
+            toast.innerHTML = `
+                <i class="bi bi-${isError ? 'exclamation-circle' : 'check-circle'}"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Update order status
+        async function updateOrderStatus(orderId, newStatus) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.add('active');
+
+            try {
+                const response = await fetch(`/api/kitchen/orders/${orderId}/status`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.status === 401) {
+                    showToast('Session expired. Redirecting to login...', true);
+                    setTimeout(() => window.location.href = '/owner/login', 1500);
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast(`Order updated to ${newStatus}`);
+                    await refreshOrders();
+                } else {
+                    showToast(data.message || 'Failed to update order', true);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Network error. Please try again.', true);
+            } finally {
+                loadingOverlay.classList.remove('active');
+            }
+        }
+
+        // Render order card
+        function renderOrderCard(order) {
+            const itemsHtml = order.items.map(item => `
+                <div class="item-row">
+                    <span class="item-qty">${item.quantity}</span>
+                    <div class="item-details">
+                        <div class="item-name">${item.name}</div>
+                        ${item.notes ? `<div class="item-notes">📝 ${item.notes}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            let actionsHtml = '';
+            if (order.status === 'pending') {
+                actionsHtml = `
+                    <button class="btn-action btn-start" onclick="updateOrderStatus(${order.id}, 'preparing')">
+                        <i class="bi bi-play-fill"></i> Start Preparing
+                    </button>
+                `;
+            } else if (order.status === 'preparing') {
+                actionsHtml = `
+                    <button class="btn-action btn-ready" onclick="updateOrderStatus(${order.id}, 'ready')">
+                        <i class="bi bi-check-circle"></i> Ready
+                    </button>
+                    <button class="btn-action btn-complete" onclick="updateOrderStatus(${order.id}, 'completed')">
+                        <i class="bi bi-check-all"></i> Complete
+                    </button>
+                `;
+            } else if (order.status === 'ready') {
+                actionsHtml = `
+                    <button class="btn-action btn-complete" onclick="updateOrderStatus(${order.id}, 'completed')">
+                        <i class="bi bi-check-all"></i> Served & Complete
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="order-card ${order.status}" data-order-id="${order.id}">
+                    <div class="order-top">
+                        <div class="order-info">
+                            <div class="order-number">#${order.order_number.slice(-6)}</div>
+                            <div class="order-time"><i class="bi bi-clock"></i> ${order.created_at}</div>
+                        </div>
+                        <div class="table-badge">
+                            <i class="bi bi-geo-alt-fill"></i> Table ${order.table_number}
+                        </div>
+                    </div>
+                    <div class="order-items">${itemsHtml}</div>
+                    <div class="order-actions">${actionsHtml}</div>
+                </div>
+            `;
+        }
+
+        // Refresh orders from API
+        async function refreshOrders() {
+            try {
+                const response = await fetch('/api/kitchen/orders', {
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (response.status === 401) {
+                    console.log('Session expired, redirecting to login...');
+                    window.location.href = '/owner/login';
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const pendingOrders = data.orders.filter(o => o.status === 'pending');
+                    const preparingOrders = data.orders.filter(o => o.status === 'preparing');
+                    const readyOrders = data.orders.filter(o => o.status === 'ready');
+
+                    // Update stats
+                    document.getElementById('statPending').textContent = data.stats.pending;
+                    document.getElementById('statPreparing').textContent = data.stats.preparing;
+                    document.getElementById('statReady').textContent = data.stats.ready;
+
+                    // Update counts
+                    document.getElementById('pendingCount').textContent = pendingOrders.length;
+                    document.getElementById('preparingCount').textContent = preparingOrders.length;
+                    document.getElementById('readyCount').textContent = readyOrders.length;
+
+                    // Render orders
+                    renderOrderList('pendingOrders', pendingOrders, 'pending');
+                    renderOrderList('preparingOrders', preparingOrders, 'preparing');
+                    renderOrderList('readyOrders', readyOrders, 'ready');
+                }
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+            }
+        }
+
+        function renderOrderList(containerId, orders, status) {
+            const container = document.getElementById(containerId);
+
+            if (orders.length === 0) {
+                const emptyMessages = {
+                    'pending': 'No pending orders',
+                    'preparing': 'No orders cooking',
+                    'ready': 'No orders ready'
+                };
+                const emptyIcons = {
+                    'pending': 'bi-inbox',
+                    'preparing': 'bi-fire',
+                    'ready': 'bi-bag-check'
+                };
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi ${emptyIcons[status]}"></i>
+                        <p>${emptyMessages[status]}</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = orders.map(order => renderOrderCard(order)).join('');
+            }
+        }
+
+        // Track order count to detect new orders
+        let previousPendingCount = 0;
+
+        // Play notification for new orders
+        function playNewOrderSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.3;
+
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+
+                setTimeout(() => {
+                    const osc2 = audioContext.createOscillator();
+                    osc2.connect(gainNode);
+                    osc2.frequency.value = 1000;
+                    osc2.type = 'sine';
+                    osc2.start();
+                    osc2.stop(audioContext.currentTime + 0.2);
+                }, 250);
+            } catch (e) {
+                console.log('Audio notification not supported');
+            }
+        }
+
+        // Enhanced refresh with new order detection
+        async function refreshOrdersWithNotification() {
+            try {
+                const response = await fetch('/api/kitchen/orders', {
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (response.status === 401) {
+                    console.log('Session expired, redirecting to login...');
+                    window.location.href = '/owner/login';
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const pendingOrders = data.orders.filter(o => o.status === 'pending');
+                    const preparingOrders = data.orders.filter(o => o.status === 'preparing');
+                    const readyOrders = data.orders.filter(o => o.status === 'ready');
+
+                    // Check for new pending orders
+                    if (pendingOrders.length > previousPendingCount && previousPendingCount > 0) {
+                        playNewOrderSound();
+                        showToast('🆕 New order received!');
+                    }
+                    previousPendingCount = pendingOrders.length;
+
+                    // Update stats
+                    document.getElementById('statPending').textContent = data.stats.pending;
+                    document.getElementById('statPreparing').textContent = data.stats.preparing;
+                    document.getElementById('statReady').textContent = data.stats.ready;
+
+                    // Update counts
+                    document.getElementById('pendingCount').textContent = pendingOrders.length;
+                    document.getElementById('preparingCount').textContent = preparingOrders.length;
+                    document.getElementById('readyCount').textContent = readyOrders.length;
+
+                    // Render orders
+                    renderOrderList('pendingOrders', pendingOrders, 'pending');
+                    renderOrderList('preparingOrders', preparingOrders, 'preparing');
+                    renderOrderList('readyOrders', readyOrders, 'ready');
+                }
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+            }
+        }
+
+        // Initial load and auto-refresh every 3 seconds for faster sync
+        refreshOrdersWithNotification();
+        setInterval(refreshOrdersWithNotification, 3000);
+    </script>
+</body>
+</html>
+

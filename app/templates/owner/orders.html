@@ -65,6 +65,7 @@
         .status-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2); }
         .status-select.pending { background: #FFF3E0; color: #F57C00; border-color: #FFE0B2; }
         .status-select.preparing { background: #E3F2FD; color: #1E88E5; border-color: #BBDEFB; }
+        .status-select.ready { background: #E8F5E9; color: #2E7D32; border-color: #C8E6C9; }
         .status-select.completed { background: #E8F5E9; color: #2E7D32; border-color: #C8E6C9; }
         .status-select.cancelled { background: #FFEBEE; color: #C62828; border-color: #FFCDD2; }
 
@@ -87,6 +88,8 @@
                 <ul class="navbar-nav ms-auto me-3">
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}"><i class="bi bi-grid-fill me-1"></i>Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link active" href="{{ url_for('owner.orders') }}"><i class="bi bi-receipt me-1"></i>Orders</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('owner.kitchen_screen') }}"><i class="bi bi-fire me-1"></i>Kitchen</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('owner.customer_display') }}"><i class="bi bi-display me-1"></i>Display</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('owner.menu') }}"><i class="bi bi-menu-button-wide me-1"></i>Menu</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('owner.profile') }}"><i class="bi bi-person me-1"></i>Profile</a></li>
                 </ul>
@@ -152,6 +155,7 @@
                                 <select name="status" class="status-select {{ order.status }}" onchange="document.getElementById('statusForm{{ order.id }}').submit();">
                                     <option value="pending" {{ 'selected' if order.status == 'pending' else '' }}>Pending</option>
                                     <option value="preparing" {{ 'selected' if order.status == 'preparing' else '' }}>Preparing</option>
+                                    <option value="ready" {{ 'selected' if order.status == 'ready' else '' }}>Ready</option>
                                     <option value="completed" {{ 'selected' if order.status == 'completed' else '' }}>Completed</option>
                                     <option value="cancelled" {{ 'selected' if order.status == 'cancelled' else '' }}>Cancelled</option>
                                 </select>

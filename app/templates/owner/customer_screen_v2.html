@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Status - {{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-gradient-start: #0f0c29;
+            --bg-gradient-mid: #302b63;
+            --bg-gradient-end: #24243e;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --orange: #ff6b6b;
+            --blue: #4ecdc4;
+            --green: #95e1d3;
+            --yellow: #f9ca24;
+            --text-white: #ffffff;
+            --text-gray: #a0a0a0;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --glow-orange: 0 0 20px rgba(255, 107, 107, 0.5);
+            --glow-blue: 0 0 20px rgba(78, 205, 196, 0.5);
+            --glow-green: 0 0 30px rgba(149, 225, 211, 0.6);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 50%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            color: var(--text-white);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background circles */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            z-index: 0;
+            opacity: 0.1;
+        }
+
+        body::before {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--orange) 0%, transparent 70%);
+            top: -300px;
+            right: -300px;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        body::after {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--blue) 0%, transparent 70%);
+            bottom: -200px;
+            left: -200px;
+            animation: float 15s infinite ease-in-out reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(50px, 50px); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .restaurant-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .restaurant-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--orange), var(--yellow));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .restaurant-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-white) 0%, var(--blue) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .page-subtitle {
+            font-size: 1rem;
+            color: var(--text-gray);
+            font-weight: 500;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(78, 205, 196, 0.15);
+            border: 1px solid var(--blue);
+            padding: 0.5rem 1.25rem;
+            border-radius: 30px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--blue);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 0 0 var(--blue);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.1);
+                box-shadow: 0 0 0 10px transparent;
+            }
+        }
+
+        /* Status Grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .status-column {
+            animation: fadeInUp 0.8s ease;
+            animation-fill-mode: both;
+        }
+
+        .status-column:nth-child(1) { animation-delay: 0.1s; }
+        .status-column:nth-child(2) { animation-delay: 0.2s; }
+        .status-column:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-header {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--orange), var(--yellow));
+        }
+
+        .status-header.preparing::before {
+            background: linear-gradient(90deg, var(--blue), var(--green));
+        }
+
+        .status-header.ready::before {
+            background: linear-gradient(90deg, var(--green), var(--blue));
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .status-icon-large {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(249, 202, 36, 0.2));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            position: relative;
+        }
+
+        .status-header.preparing .status-icon-large {
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(149, 225, 211, 0.2));
+            animation: rotate 3s linear infinite;
+        }
+
+        .status-header.ready .status-icon-large {
+            background: linear-gradient(135deg, rgba(149, 225, 211, 0.3), rgba(78, 205, 196, 0.3));
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .status-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .status-description {
+            font-size: 0.875rem;
+            color: var(--text-gray);
+            font-weight: 500;
+        }
+
+        /* Orders Container */
+        .orders-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            min-height: 400px;
+        }
+
+        /* Order Card */
+        .order-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--card-border);
+            border-radius: 18px;
+            padding: 1.5rem 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .order-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .order-card.pending {
+            border-color: var(--orange);
+            box-shadow: var(--glow-orange);
+        }
+
+        .order-card.preparing {
+            border-color: var(--blue);
+            box-shadow: var(--glow-blue);
+            animation: slideIn 0.5s ease, pulse-card 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-card {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .order-card.ready {
+            border-color: var(--green);
+            background: linear-gradient(135deg, var(--card-bg), rgba(149, 225, 211, 0.1));
+            box-shadow: var(--glow-green);
+            animation: slideIn 0.5s ease, bounce-card 1s ease-in-out infinite;
+        }
+
+        @keyframes bounce-card {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .order-left {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .order-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(249, 202, 36, 0.3));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .order-card.preparing .order-icon {
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(149, 225, 211, 0.3));
+        }
+
+        .order-card.ready .order-icon {
+            background: linear-gradient(135deg, rgba(149, 225, 211, 0.4), rgba(78, 205, 196, 0.4));
+        }
+
+        .order-number {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--text-white), var(--text-gray));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .order-right {
+            text-align: right;
+        }
+
+        .table-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.625rem 1.25rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+        }
+
+        .table-badge i {
+            font-size: 1.125rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+            animation: float-icon 3s ease-in-out infinite;
+        }
+
+        @keyframes float-icon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .empty-icon i {
+            font-size: 3rem;
+            color: var(--text-gray);
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 1.125rem;
+            color: var(--text-gray);
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Sparkles effect for ready orders */
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+
+        .order-card.ready::before,
+        .order-card.ready::after {
+            content: '✨';
+            position: absolute;
+            font-size: 1.5rem;
+            animation: sparkle 2s infinite;
+        }
+
+        .order-card.ready::before {
+            top: 10px;
+            right: 10px;
+            animation-delay: 0.5s;
+        }
+
+        .order-card.ready::after {
+            bottom: 10px;
+            left: 10px;
+            animation-delay: 1s;
+        }
+
+        .order-card {
+            position: relative;
+        }
+
+        /* Footer Time */
+        .footer-time {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .time-display {
+            font-size: 2.25rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--text-white), var(--blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .order-number {
+                font-size: 1.75rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .page-title {
+                font-size: 1.75rem;
+            }
+
+            .page-subtitle {
+                font-size: 0.875rem;
+            }
+
+            .order-card {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .order-left {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .order-right {
+                text-align: center;
+            }
+
+            .order-number {
+                font-size: 1.5rem;
+            }
+
+            .time-display {
+                font-size: 1.75rem;
+            }
+
+            .status-title {
+                font-size: 1.125rem;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="restaurant-badge">
+                <div class="restaurant-icon">
+                    <i class="bi bi-shop"></i>
+                </div>
+                <span class="restaurant-name">{{ restaurant.name }}</span>
+            </div>
+
+            <h1 class="page-title">Track Your Order</h1>
+            <p class="page-subtitle">Watch your order journey in real-time</p>
+
+            <div class="live-badge">
+                <span class="live-dot"></span>
+                <span>Live Updates</span>
+            </div>
+        </header>
+
+        <!-- Status Grid -->
+        <div class="status-grid">
+            <!-- Order Received -->
+            <div class="status-column">
+                <div class="status-header pending">
+                    <div class="status-icon-large">
+                        <i class="bi bi-clock-history" style="color: var(--orange);"></i>
+                    </div>
+                    <h2 class="status-title">Order Received</h2>
+                    <p class="status-description">We've got your order!</p>
+                </div>
+
+                <div class="orders-container" id="pendingContainer">
+                    {% if pending_orders %}
+                        {% for order in pending_orders %}
+                        <div class="order-card pending">
+                            <div class="order-left">
+                                <div class="order-icon">
+                                    <i class="bi bi-receipt"></i>
+                                </div>
+                                <div class="order-number">#{{ order.order_number[-4:] }}</div>
+                            </div>
+                            <div class="order-right">
+                                <div class="table-badge">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Table {{ order.table_number }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <p class="empty-text">No orders waiting</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Preparing -->
+            <div class="status-column">
+                <div class="status-header preparing">
+                    <div class="status-icon-large">
+                        <i class="bi bi-fire" style="color: var(--blue);"></i>
+                    </div>
+                    <h2 class="status-title">Preparing Now</h2>
+                    <p class="status-description">Your order is being cooked</p>
+                </div>
+
+                <div class="orders-container" id="preparingContainer">
+                    {% if preparing_orders %}
+                        {% for order in preparing_orders %}
+                        <div class="order-card preparing">
+                            <div class="order-left">
+                                <div class="order-icon">
+                                    <i class="bi bi-fire"></i>
+                                </div>
+                                <div class="order-number">#{{ order.order_number[-4:] }}</div>
+                            </div>
+                            <div class="order-right">
+                                <div class="table-badge">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Table {{ order.table_number }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-fire"></i>
+                        </div>
+                        <p class="empty-text">Nothing cooking yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Ready -->
+            <div class="status-column">
+                <div class="status-header ready">
+                    <div class="status-icon-large">
+                        <i class="bi bi-check-circle-fill" style="color: var(--green);"></i>
+                    </div>
+                    <h2 class="status-title">Ready!</h2>
+                    <p class="status-description">Come and collect your order</p>
+                </div>
+
+                <div class="orders-container" id="readyContainer">
+                    {% if ready_orders %}
+                        {% for order in ready_orders %}
+                        <div class="order-card ready">
+                            <div class="order-left">
+                                <div class="order-icon">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                </div>
+                                <div class="order-number">#{{ order.order_number[-4:] }}</div>
+                            </div>
+                            <div class="order-right">
+                                <div class="table-badge">
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Table {{ order.table_number }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <p class="empty-text">No orders ready yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Time -->
+        <footer class="footer-time">
+            <div class="time-display" id="currentTime"></div>
+        </footer>
+    </div>
+
+    <!-- Audio for notifications -->
+    <audio id="readySound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGwtHDJwpNPcsi8ZIz2Fw97bnyQrLUV7xeDdl0VNXWFP" type="audio/wav">
+    </audio>
+
+    <script>
+        const restaurantId = {{ restaurant.id }};
+        let previousReadyCount = {{ ready_orders|length }};
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent =
+                now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Play notification sound
+        function playReadySound() {
+            const sound = document.getElementById('readySound');
+            sound.currentTime = 0;
+            sound.play().catch(e => console.log('Audio play failed'));
+        }
+
+        // Refresh orders from API
+        async function refreshOrders() {
+            try {
+                const response = await fetch(`/api/${restaurantId}/orders-status`);
+                const data = await response.json();
+
+                if (data.success) {
+                    updateOrderContainer('pendingContainer', data.orders.pending, 'pending');
+                    updateOrderContainer('preparingContainer', data.orders.preparing, 'preparing');
+                    updateOrderContainer('readyContainer', data.orders.ready, 'ready');
+
+                    // Play sound if new order is ready
+                    if (data.orders.ready.length > previousReadyCount) {
+                        playReadySound();
+                    }
+                    previousReadyCount = data.orders.ready.length;
+                }
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+            }
+        }
+
+        function updateOrderContainer(containerId, orders, status) {
+            const container = document.getElementById(containerId);
+
+            const emptyStates = {
+                'pending': { icon: 'bi-clock-history', text: 'No orders waiting' },
+                'preparing': { icon: 'bi-fire', text: 'Nothing cooking yet' },
+                'ready': { icon: 'bi-check-circle', text: 'No orders ready yet' }
+            };
+
+            const icons = {
+                'pending': 'bi-receipt',
+                'preparing': 'bi-fire',
+                'ready': 'bi-check-circle-fill'
+            };
+
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi ${emptyStates[status].icon}"></i>
+                        </div>
+                        <p class="empty-text">${emptyStates[status].text}</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = orders.map(order => `
+                    <div class="order-card ${status}">
+                        <div class="order-left">
+                            <div class="order-icon">
+                                <i class="bi ${icons[status]}"></i>
+                            </div>
+                            <div class="order-number">#${order.order_number.slice(-4)}</div>
+                        </div>
+                        <div class="order-right">
+                            <div class="table-badge">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                <span>Table ${order.table_number}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Refresh every 3 seconds
+        refreshOrders();
+        setInterval(refreshOrders, 3000);
+    </script>
+</body>
+</html>
+

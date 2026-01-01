@@ -442,6 +442,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('owner.kitchen_screen') }}">
+                            <i class="bi bi-fire me-1"></i>Kitchen
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('owner.customer_display') }}">
+                            <i class="bi bi-display me-1"></i>Display
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('owner.menu') }}">
                             <i class="bi bi-menu-button-wide me-1"></i>Menu
                         </a>
@@ -551,6 +561,38 @@
                         <i class="bi bi-graph-up text-success me-1"></i>Revenue today
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Quick Access Section -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <a href="{{ url_for('owner.kitchen_screen') }}" class="quick-access-card" style="display: block; text-decoration: none; background: linear-gradient(135deg, #F57C00 0%, #FF9800 100%); color: white; border-radius: 12px; padding: 1.5rem; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(245, 124, 0, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-fire" style="font-size: 1.75rem;"></i>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; font-weight: 700; font-size: 1.25rem;">Kitchen Screen</h4>
+                            <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">Manage orders in the kitchen</p>
+                        </div>
+                        <i class="bi bi-arrow-right-circle" style="margin-left: auto; font-size: 1.5rem; opacity: 0.8;"></i>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6">
+                <a href="{{ url_for('owner.customer_display') }}" class="quick-access-card" style="display: block; text-decoration: none; background: linear-gradient(135deg, #0F4C81 0%, #1E88E5 100%); color: white; border-radius: 12px; padding: 1.5rem; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(15, 76, 129, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-display" style="font-size: 1.75rem;"></i>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; font-weight: 700; font-size: 1.25rem;">Customer Display</h4>
+                            <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">Show order status to customers</p>
+                        </div>
+                        <i class="bi bi-arrow-right-circle" style="margin-left: auto; font-size: 1.5rem; opacity: 0.8;"></i>
+                    </div>
+                </a>
             </div>
         </div>
 

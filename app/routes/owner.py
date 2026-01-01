@@ -2,7 +2,7 @@
 Restaurant Owner Routes - Completely separate from admin system
 URL Pattern: /<restaurant_id>/* for each restaurant
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g, jsonify
 from functools import wraps
 from app import db
 from app.models import User, Restaurant, Order, Category, Table, MenuItem
@@ -24,13 +24,23 @@ def owner_required(f):
     """Decorator for owner-only routes"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Check if this is an AJAX/API request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+                  request.content_type == 'application/json' or \
+                  request.accept_mimetypes.best == 'application/json' or \
+                  '/api/' in request.path
+
         if not session.get('owner_logged_in'):
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Please login to access your restaurant'}), 401
             flash('Please login to access your restaurant', 'info')
             return redirect(url_for('owner.login'))
         user = get_current_owner()
         if not user:
             session.pop('owner_logged_in', None)
             session.pop('owner_user_id', None)
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Session expired. Please login again'}), 401
             flash('Session expired. Please login again', 'info')
             return redirect(url_for('owner.login'))
         g.owner = user
@@ -39,6 +49,8 @@ def owner_required(f):
         restaurant_id = kwargs.get('restaurant_id')
         if restaurant_id and user.restaurant:
             if str(user.restaurant.id) != str(restaurant_id):
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'Access denied'}), 403
                 flash('Access denied. You can only access your own restaurant.', 'error')
                 return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
 
@@ -301,7 +313,7 @@ def update_order_status(order_id):
 
     new_status = request.form.get('status')
 
-    if new_status not in ['pending', 'preparing', 'completed', 'cancelled']:
+    if new_status not in ['pending', 'preparing', 'ready', 'completed', 'cancelled']:
         flash('Invalid status', 'error')
         return redirect(url_for('owner.orders'))
 
@@ -662,4 +674,230 @@ def change_password():
             return redirect(url_for('owner.profile'))
 
     return render_template('owner/change_password.html', user=user)
+
+
+@owner_bp.route('/kitchen')
+@owner_required
+def kitchen_screen():
+    """Kitchen dashboard for managing all orders"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return redirect(url_for('owner.dashboard'))
+
+    # Get all active orders (pending, preparing, ready) and recent completed
+    from datetime import datetime, timedelta
+    today = datetime.utcnow().date()
+
+    orders = Order.query.filter(
+        Order.restaurant_id == user.restaurant.id,
+        db.or_(
+            Order.status.in_(['pending', 'preparing', 'ready']),
+            db.and_(
+                Order.status.in_(['completed', 'cancelled']),
+                db.func.date(Order.created_at) == today
+            )
+        )
+    ).order_by(Order.created_at.asc()).all()
+
+    # Stats for kitchen dashboard
+    stats = {
+        'pending': Order.query.filter_by(restaurant_id=user.restaurant.id, status='pending').count(),
+        'preparing': Order.query.filter_by(restaurant_id=user.restaurant.id, status='preparing').count(),
+        'ready': Order.query.filter_by(restaurant_id=user.restaurant.id, status='ready').count(),
+        'completed': Order.query.filter(
+            Order.restaurant_id == user.restaurant.id,
+            Order.status == 'completed',
+            db.func.date(Order.created_at) == today
+        ).count(),
+        'cancelled': Order.query.filter(
+            Order.restaurant_id == user.restaurant.id,
+            Order.status == 'cancelled',
+            db.func.date(Order.created_at) == today
+        ).count(),
+    }
+
+    return render_template('owner/kitchen_dashboard_v2.html',
+        user=user,
+        restaurant=user.restaurant,
+        orders=orders,
+        stats=stats
+    )
+
+
+@owner_bp.route('/api/kitchen/orders')
+@owner_required
+def api_kitchen_orders():
+    """API endpoint for kitchen to fetch all orders with full details"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    # Get all orders: active ones (pending, preparing, ready) and today's completed/cancelled
+    from datetime import datetime
+    today = datetime.utcnow().date()
+
+    orders = Order.query.filter(
+        Order.restaurant_id == user.restaurant.id,
+        db.or_(
+            Order.status.in_(['pending', 'preparing', 'ready']),
+            db.and_(
+                Order.status.in_(['completed', 'cancelled']),
+                db.func.date(Order.created_at) == today
+            )
+        )
+    ).order_by(Order.created_at.asc()).all()
+
+    orders_data = []
+    for order in orders:
+        orders_data.append({
+            'id': order.id,
+            'order_number': order.order_number,
+            'table_number': order.table_number,
+            'status': order.status,
+            'created_at': order.created_at.strftime('%H:%M'),
+            'created_at_full': order.created_at.isoformat(),
+            'items': [
+                {
+                    'name': item.menu_item.name if item.menu_item else 'Unknown',
+                    'quantity': item.quantity,
+                    'notes': item.notes
+                }
+                for item in order.items
+            ]
+        })
+
+    stats = {
+        'pending': sum(1 for o in orders if o.status == 'pending'),
+        'preparing': sum(1 for o in orders if o.status == 'preparing'),
+        'ready': sum(1 for o in orders if o.status == 'ready'),
+        'completed': sum(1 for o in orders if o.status == 'completed'),
+        'cancelled': sum(1 for o in orders if o.status == 'cancelled'),
+    }
+
+    return jsonify({'success': True, 'orders': orders_data, 'stats': stats})
+
+
+@owner_bp.route('/api/kitchen/orders/<int:order_id>/status', methods=['POST'])
+@owner_required
+def api_kitchen_update_status(order_id):
+    """API endpoint to update order status from kitchen screen"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    order = Order.query.filter_by(id=order_id, restaurant_id=user.restaurant.id).first()
+
+    if not order:
+        return jsonify({'success': False, 'message': 'Order not found'}), 404
+
+    data = request.get_json() if request.is_json else None
+    new_status = data.get('status') if data else request.form.get('status')
+
+    if new_status not in ['pending', 'preparing', 'ready', 'completed', 'cancelled']:
+        return jsonify({'success': False, 'message': 'Invalid status'}), 400
+
+    order.status = new_status
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': f'Order updated to {new_status}', 'new_status': new_status})
+
+
+@owner_bp.route('/kitchen/orders/<int:order_id>/status', methods=['POST'])
+@owner_required
+def kitchen_update_status(order_id):
+    """Update order status from kitchen screen (form submission fallback)"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return {'success': False, 'message': 'No restaurant found'}, 400
+
+    order = Order.query.filter_by(id=order_id, restaurant_id=user.restaurant.id).first()
+
+    if not order:
+        return {'success': False, 'message': 'Order not found'}, 404
+
+    new_status = request.form.get('status')
+
+    if new_status not in ['pending', 'preparing', 'ready', 'completed', 'cancelled']:
+        return {'success': False, 'message': 'Invalid status'}, 400
+
+    order.status = new_status
+    db.session.commit()
+
+    # If this is a regular form submission
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        flash(f'Order #{order.order_number} updated to {new_status}', 'success')
+        return redirect(url_for('owner.kitchen_screen'))
+
+    return {'success': True, 'message': f'Order updated to {new_status}'}
+
+
+@owner_bp.route('/customer-display')
+@owner_required
+def customer_display():
+    """Customer display screen showing order statuses - accessible from dashboard"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return redirect(url_for('owner.dashboard'))
+
+    return render_template('owner/customer_display_launcher.html',
+        user=user,
+        restaurant=user.restaurant
+    )
+
+
+@owner_bp.route('/<int:restaurant_id>/customer-screen')
+def customer_screen(restaurant_id):
+    """Public customer display screen showing order statuses"""
+    restaurant = Restaurant.query.get_or_404(restaurant_id)
+
+    if not restaurant.is_active:
+        return "Restaurant not available", 404
+
+    # Get orders in progress (pending, preparing, ready)
+    orders = Order.query.filter(
+        Order.restaurant_id == restaurant.id,
+        Order.status.in_(['pending', 'preparing', 'ready'])
+    ).order_by(Order.created_at.asc()).all()
+
+    # Group orders by status
+    pending_orders = [o for o in orders if o.status == 'pending']
+    preparing_orders = [o for o in orders if o.status == 'preparing']
+    ready_orders = [o for o in orders if o.status == 'ready']
+
+    return render_template('owner/customer_screen_v2.html',
+        restaurant=restaurant,
+        pending_orders=pending_orders,
+        preparing_orders=preparing_orders,
+        ready_orders=ready_orders
+    )
+
+
+@owner_bp.route('/api/<int:restaurant_id>/orders-status')
+def api_orders_status(restaurant_id):
+    """API endpoint for customer screen to fetch live order updates"""
+    restaurant = Restaurant.query.get_or_404(restaurant_id)
+
+    if not restaurant.is_active:
+        return jsonify({'success': False, 'message': 'Restaurant not available'}), 404
+
+    # Get orders in progress
+    orders = Order.query.filter(
+        Order.restaurant_id == restaurant.id,
+        Order.status.in_(['pending', 'preparing', 'ready'])
+    ).order_by(Order.created_at.asc()).all()
+
+    return jsonify({
+        'success': True,
+        'orders': {
+            'pending': [{'id': o.id, 'order_number': o.order_number, 'table_number': o.table_number} for o in orders if o.status == 'pending'],
+            'preparing': [{'id': o.id, 'order_number': o.order_number, 'table_number': o.table_number} for o in orders if o.status == 'preparing'],
+            'ready': [{'id': o.id, 'order_number': o.order_number, 'table_number': o.table_number} for o in orders if o.status == 'ready']
+        }
+    })
+
 

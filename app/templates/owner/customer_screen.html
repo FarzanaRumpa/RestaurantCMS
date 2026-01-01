@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Status - {{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --accent-orange: #ff6b35;
+            --accent-blue: #00d4ff;
+            --accent-green: #00ff88;
+            --text-primary: #ffffff;
+            --text-secondary: #8892a0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .display-header {
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+            padding: 2rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .display-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .restaurant-logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-orange), #ff8c42);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .restaurant-logo i {
+            font-size: 2rem;
+            color: white;
+        }
+
+        .restaurant-name {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: livePulse 2s infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--accent-green); }
+            50% { opacity: 0.5; box-shadow: 0 0 20px var(--accent-green); }
+        }
+
+        .live-indicator span {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--accent-green);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .current-time {
+            font-size: 3rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+        }
+
+        /* Main Content */
+        .display-content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            padding: 2rem 3rem;
+            height: calc(100vh - 140px);
+        }
+
+        /* Status Column */
+        .status-column {
+            background: var(--bg-secondary);
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+
+        .status-column::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .status-column.pending::before {
+            background: linear-gradient(90deg, var(--accent-orange), #ff9966);
+        }
+
+        .status-column.preparing::before {
+            background: linear-gradient(90deg, var(--accent-blue), #66e0ff);
+        }
+
+        .status-column.ready::before {
+            background: linear-gradient(90deg, var(--accent-green), #66ffaa);
+        }
+
+        .status-header {
+            padding: 2rem;
+            text-align: center;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .status-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 2rem;
+        }
+
+        .pending .status-icon {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--accent-orange);
+        }
+
+        .preparing .status-icon {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .ready .status-icon {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--accent-green);
+        }
+
+        .status-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-count {
+            font-size: 3rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .pending .status-count { color: var(--accent-orange); }
+        .preparing .status-count { color: var(--accent-blue); }
+        .ready .status-count { color: var(--accent-green); }
+
+        /* Orders List */
+        .orders-list {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        /* Order Tile */
+        .order-tile {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid transparent;
+        }
+
+        .order-tile.pending {
+            border-color: rgba(255, 107, 53, 0.3);
+        }
+
+        .order-tile.preparing {
+            border-color: rgba(0, 212, 255, 0.3);
+            animation: cookingPulse 2s ease-in-out infinite;
+        }
+
+        .order-tile.ready {
+            border-color: rgba(0, 255, 136, 0.5);
+            animation: readyBounce 0.8s ease-in-out infinite;
+            background: linear-gradient(135deg, var(--bg-card), rgba(0, 255, 136, 0.1));
+        }
+
+        @keyframes cookingPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        @keyframes readyBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .order-number {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .pending .order-number { color: var(--accent-orange); }
+        .preparing .order-number { color: var(--accent-blue); }
+        .ready .order-number { color: var(--accent-green); }
+
+        .order-table {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .order-table i {
+            color: var(--text-secondary);
+        }
+
+        /* Empty State */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .empty-icon i {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Sound notification bell */
+        .notification-bell {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            background: var(--bg-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .notification-bell:hover {
+            transform: scale(1.1);
+            background: var(--bg-card);
+        }
+
+        .notification-bell i {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .notification-bell.active i {
+            color: var(--accent-green);
+        }
+
+        /* Scrollbar */
+        .orders-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .orders-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .orders-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .order-number {
+                font-size: 2.5rem;
+            }
+
+            .status-count {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .display-content {
+                grid-template-columns: 1fr;
+                height: auto;
+                overflow-y: auto;
+                padding-bottom: 100px;
+            }
+
+            .status-column {
+                max-height: none;
+            }
+
+            .orders-list {
+                max-height: 300px;
+            }
+
+            .restaurant-name {
+                font-size: 1.75rem;
+            }
+
+            .current-time {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .display-header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1.5rem;
+            }
+
+            .display-content {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .order-number {
+                font-size: 2rem;
+            }
+        }
+
+        /* Ready column glow effect */
+        .status-column.ready {
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <header class="display-header">
+        <div class="restaurant-info">
+            <div class="restaurant-logo">
+                <i class="bi bi-shop"></i>
+            </div>
+            <h1 class="restaurant-name">{{ restaurant.name }}</h1>
+        </div>
+
+        <div class="header-right">
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>Live</span>
+            </div>
+            <div class="current-time" id="currentTime"></div>
+        </div>
+    </header>
+
+    <main class="display-content">
+        <!-- Pending Column -->
+        <section class="status-column pending">
+            <div class="status-header">
+                <div class="status-icon">
+                    <i class="bi bi-clock-fill"></i>
+                </div>
+                <h2 class="status-title">Order Received</h2>
+                <div class="status-count" id="pendingCount">{{ pending_orders|length }}</div>
+            </div>
+            <div class="orders-list" id="pendingList">
+                {% if pending_orders %}
+                    {% for order in pending_orders %}
+                    <div class="order-tile pending">
+                        <span class="order-number">#{{ order.order_number[-4:] }}</span>
+                        <div class="order-table">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            Table {{ order.table_number }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                    <p>No orders waiting</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Preparing Column -->
+        <section class="status-column preparing">
+            <div class="status-header">
+                <div class="status-icon">
+                    <i class="bi bi-fire"></i>
+                </div>
+                <h2 class="status-title">Preparing</h2>
+                <div class="status-count" id="preparingCount">{{ preparing_orders|length }}</div>
+            </div>
+            <div class="orders-list" id="preparingList">
+                {% if preparing_orders %}
+                    {% for order in preparing_orders %}
+                    <div class="order-tile preparing">
+                        <span class="order-number">#{{ order.order_number[-4:] }}</span>
+                        <div class="order-table">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            Table {{ order.table_number }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="bi bi-fire"></i>
+                    </div>
+                    <p>Nothing cooking yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Ready Column -->
+        <section class="status-column ready">
+            <div class="status-header">
+                <div class="status-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <h2 class="status-title">Ready!</h2>
+                <div class="status-count" id="readyCount">{{ ready_orders|length }}</div>
+            </div>
+            <div class="orders-list" id="readyList">
+                {% if ready_orders %}
+                    {% for order in ready_orders %}
+                    <div class="order-tile ready">
+                        <span class="order-number">#{{ order.order_number[-4:] }}</span>
+                        <div class="order-table">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            Table {{ order.table_number }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="bi bi-bag-check"></i>
+                    </div>
+                    <p>No orders ready</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <div class="notification-bell" id="notificationBell" title="Toggle sound notifications">
+        <i class="bi bi-bell"></i>
+    </div>
+
+    <audio id="notificationSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGwtHDJwpNPcsi8ZIz2Fw97bnyQrLUV7xeDdl0VNXWFP" type="audio/wav">
+    </audio>
+
+    <script>
+        const restaurantId = {{ restaurant.id }};
+        let soundEnabled = false;
+        let previousReadyCount = {{ ready_orders|length }};
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent =
+                now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Toggle sound notification
+        document.getElementById('notificationBell').addEventListener('click', function() {
+            soundEnabled = !soundEnabled;
+            this.classList.toggle('active', soundEnabled);
+            this.querySelector('i').className = soundEnabled ? 'bi bi-bell-fill' : 'bi bi-bell';
+        });
+
+        // Play notification sound
+        function playNotification() {
+            if (soundEnabled) {
+                const sound = document.getElementById('notificationSound');
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log('Audio play failed:', e));
+            }
+        }
+
+        // Refresh orders from API
+        async function refreshOrders() {
+            try {
+                const response = await fetch(`/api/${restaurantId}/orders-status`);
+                const data = await response.json();
+
+                if (data.success) {
+                    updateOrderList('pendingList', 'pendingCount', data.orders.pending, 'pending');
+                    updateOrderList('preparingList', 'preparingCount', data.orders.preparing, 'preparing');
+                    updateOrderList('readyList', 'readyCount', data.orders.ready, 'ready');
+
+                    // Play sound if new order is ready
+                    if (data.orders.ready.length > previousReadyCount) {
+                        playNotification();
+                    }
+                    previousReadyCount = data.orders.ready.length;
+                }
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+            }
+        }
+
+        function updateOrderList(listId, countId, orders, status) {
+            const list = document.getElementById(listId);
+            const count = document.getElementById(countId);
+
+            count.textContent = orders.length;
+
+            if (orders.length === 0) {
+                const emptyMessages = {
+                    'pending': 'No orders waiting',
+                    'preparing': 'Nothing cooking yet',
+                    'ready': 'No orders ready'
+                };
+                const emptyIcons = {
+                    'pending': 'bi-inbox',
+                    'preparing': 'bi-fire',
+                    'ready': 'bi-bag-check'
+                };
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi ${emptyIcons[status]}"></i>
+                        </div>
+                        <p>${emptyMessages[status]}</p>
+                    </div>
+                `;
+            } else {
+                list.innerHTML = orders.map(order => `
+                    <div class="order-tile ${status}">
+                        <span class="order-number">#${order.order_number.slice(-4)}</span>
+                        <div class="order-table">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            Table ${order.table_number}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Refresh every 3 seconds for real-time updates
+        refreshOrders();
+        setInterval(refreshOrders, 3000);
+    </script>
+</body>
+</html>
+
