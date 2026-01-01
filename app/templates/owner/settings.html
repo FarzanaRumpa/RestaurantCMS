@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant Profile - {{ restaurant.name if restaurant else 'Profile' }}</title>
+    <title>Settings - {{ restaurant.name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -77,18 +77,10 @@
         .theme-toggle span { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 
         .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 24px; }
-        .card-header { padding: 24px; border-bottom: 1px solid var(--border); }
+        .card-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .card-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
         .card-title i { color: var(--accent-primary); font-size: 20px; }
         .card-body { padding: 24px; }
-
-        .logo-section { display: flex; align-items: flex-start; gap: 32px; flex-wrap: wrap; }
-        .logo-preview { width: 160px; height: 160px; background: var(--bg-card-hover); border: 2px dashed var(--border); border-radius: 20px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
-        .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
-        .logo-preview i { font-size: 48px; color: var(--text-muted); }
-        .logo-actions { flex: 1; }
-        .logo-actions h4 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-        .logo-actions p { font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
 
         .form-group { margin-bottom: 24px; }
         .form-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
@@ -101,29 +93,29 @@
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
 
+        .toggle-group { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--bg-card-hover); border-radius: 12px; margin-bottom: 16px; }
+        .toggle-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .toggle-info p { font-size: 13px; color: var(--text-secondary); }
+
+        .toggle-switch { position: relative; width: 52px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 28px; transition: 0.3s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent-green); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+        .conditional-fields { padding: 20px; background: var(--bg-dark); border-radius: 12px; margin-top: -8px; margin-bottom: 16px; display: none; }
+        .conditional-fields.show { display: block; }
+
         .btn { padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; border: none; }
         .btn-primary { background: var(--accent-primary); color: white; }
         .btn-primary:hover { background: #5558e3; transform: translateY(-2px); }
-        .btn-danger { background: var(--accent-red); color: white; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
-        .btn-outline:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
         .btn-lg { padding: 16px 32px; font-size: 16px; }
-
-        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 50px; font-size: 12px; font-weight: 600; }
-        .status-badge.active { background: var(--accent-green-bg); color: var(--accent-green); }
-        .status-badge.inactive { background: var(--accent-red-bg); color: var(--accent-red); }
 
         .flash-messages { margin-bottom: 24px; }
         .alert { padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .alert-success { background: var(--accent-green-bg); border: 1px solid rgba(34, 197, 94, 0.3); color: var(--accent-green); }
         .alert-error { background: var(--accent-red-bg); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--accent-red); }
-
-        .account-section { background: var(--bg-card-hover); border-radius: 12px; padding: 20px; }
-        .account-info { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-        .account-avatar { width: 56px; height: 56px; background: linear-gradient(135deg, var(--accent-blue), #06b6d4); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: white; }
-        .account-details h4 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-        .account-details p { font-size: 14px; color: var(--text-secondary); }
 
         @media (max-width: 992px) {
             .sidebar { transform: translateX(-100%); }
@@ -153,7 +145,7 @@
                 </div>
                 <div class="brand-info">
                     <h1>{{ restaurant.name if restaurant else 'Restaurant' }}</h1>
-                    <span>Restaurant Profile</span>
+                    <span>Settings</span>
                 </div>
             </div>
         </div>
@@ -175,8 +167,8 @@
             {% endif %}
             <div class="nav-section">
                 <div class="nav-section-title">Account</div>
-                <a href="{{ url_for('owner.profile') }}" class="nav-item active"><i class="bi bi-shop-window"></i>Restaurant Profile</a>
-                <a href="{{ url_for('owner.settings') }}" class="nav-item"><i class="bi bi-gear"></i>Settings</a>
+                <a href="{{ url_for('owner.profile') }}" class="nav-item"><i class="bi bi-shop-window"></i>Restaurant Profile</a>
+                <a href="{{ url_for('owner.settings') }}" class="nav-item active"><i class="bi bi-gear"></i>Settings</a>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -204,103 +196,98 @@
 
         <header class="page-header">
             <div class="page-title">
-                <h1>Restaurant Profile</h1>
-                <p>Manage your restaurant information and branding</p>
+                <h1>Settings</h1>
+                <p>Configure tax rates, invoice options, and more</p>
             </div>
             <div class="header-actions">
                 <button class="theme-toggle" onclick="toggleTheme()">
                     <i class="bi bi-sun-fill" id="themeIcon"></i>
                     <span id="themeLabel">Light</span>
                 </button>
-                {% if restaurant %}
-                <span class="status-badge {{ 'active' if restaurant.is_active else 'inactive' }}">
-                    <i class="bi bi-{{ 'check-circle' if restaurant.is_active else 'x-circle' }}"></i>
-                    {{ 'Active' if restaurant.is_active else 'Inactive' }}
-                </span>
-                {% endif %}
             </div>
         </header>
 
-        {% if restaurant %}
-        <!-- Restaurant Logo -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title"><i class="bi bi-image"></i> Restaurant Logo</h3>
-            </div>
-            <div class="card-body">
-                <div class="logo-section">
-                    <div class="logo-preview">
-                        {% if restaurant.logo_path %}
-                        <img src="/static/uploads/logos/{{ restaurant.logo_path }}" alt="Restaurant Logo" id="logoPreview">
-                        {% else %}
-                        <i class="bi bi-image" id="logoIcon"></i>
-                        <img src="" alt="" id="logoPreview" style="display: none;">
-                        {% endif %}
-                    </div>
-                    <div class="logo-actions">
-                        <h4>Upload Your Logo</h4>
-                        <p>Your logo will appear on invoices, receipts, kitchen screen, customer display, and public menu. For best results, use a square image (minimum 200x200 pixels).</p>
-                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                            <form action="{{ url_for('owner.upload_logo') }}" method="POST" enctype="multipart/form-data" id="logoForm">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="file" name="logo" id="logoInput" accept="image/*" style="display: none;" onchange="previewLogo(this)">
-                                <label for="logoInput" class="btn btn-primary" style="cursor: pointer;">
-                                    <i class="bi bi-upload"></i> Choose Image
-                                </label>
-                            </form>
-                            {% if restaurant.logo_path %}
-                            <form action="{{ url_for('owner.delete_logo') }}" method="POST" onsubmit="return confirm('Delete logo?')">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-danger">
-                                    <i class="bi bi-trash"></i> Remove
-                                </button>
-                            </form>
-                            {% endif %}
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Tax Settings -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="bi bi-percent"></i> Tax Settings</h3>
+                </div>
+                <div class="card-body">
+                    <!-- SST Toggle -->
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>SST (Sales & Service Tax)</h4>
+                            <p>Enable SST for your invoices</p>
                         </div>
-                        <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">Supported: PNG, JPG, GIF, WEBP (max 2MB)</p>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="sst_enabled" id="sstEnabled" {{ 'checked' if restaurant.sst_enabled else '' }} onchange="toggleConditional('sstFields', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="conditional-fields {{ 'show' if restaurant.sst_enabled else '' }}" id="sstFields">
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">SST Registration No.</label>
+                                <input type="text" name="sst_registration_no" class="form-control" value="{{ restaurant.sst_registration_no or '' }}" placeholder="e.g., SST-12345678">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">SST Rate (%)</label>
+                                <input type="number" name="sst_rate" class="form-control" value="{{ restaurant.sst_rate or 6 }}" step="0.1" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Tax Toggle -->
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Service Tax / Service Charge</h4>
+                            <p>Add service charge to orders</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="service_tax_enabled" id="serviceTaxEnabled" {{ 'checked' if restaurant.service_tax_enabled else '' }} onchange="toggleConditional('serviceTaxFields', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="conditional-fields {{ 'show' if restaurant.service_tax_enabled else '' }}" id="serviceTaxFields">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Service Tax Rate (%)</label>
+                            <input type="number" name="service_tax_rate" class="form-control" value="{{ restaurant.service_tax_rate or 10 }}" step="0.1" min="0" max="100" style="max-width: 200px;">
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Restaurant Information -->
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <!-- Invoice Settings -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><i class="bi bi-shop"></i> Restaurant Information</h3>
+                    <h3 class="card-title"><i class="bi bi-receipt"></i> Invoice Settings</h3>
                 </div>
                 <div class="card-body">
                     <div class="form-group">
-                        <label class="form-label">Restaurant Name *</label>
-                        <input type="text" name="name" class="form-control" value="{{ restaurant.name }}" required>
+                        <label class="form-label">Currency Symbol</label>
+                        <input type="text" name="currency_symbol" class="form-control" value="{{ restaurant.currency_symbol or '$' }}" style="max-width: 100px;">
+                        <div class="form-hint">Symbol to display on invoices (e.g., $, RM, £, €)</div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="Tell customers about your restaurant...">{{ restaurant.description or '' }}</textarea>
-                        <div class="form-hint">This appears on your public menu page</div>
+                    <!-- Invoice Footer Toggle -->
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Invoice Footer Note</h4>
+                            <p>Show a custom message at the bottom of invoices</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="invoice_footer_enabled" id="footerEnabled" {{ 'checked' if restaurant.invoice_footer_enabled else '' }} onchange="toggleConditional('footerFields', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Address</label>
-                            <input type="text" name="address" class="form-control" value="{{ restaurant.address or '' }}" placeholder="123 Main Street, City">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Phone</label>
-                            <input type="tel" name="phone" class="form-control" value="{{ restaurant.phone or '' }}" placeholder="+1 234 567 8900">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" value="{{ restaurant.email or '' }}" placeholder="contact@restaurant.com">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Website</label>
-                            <input type="url" name="website" class="form-control" value="{{ restaurant.website or '' }}" placeholder="https://www.restaurant.com">
+                    <div class="conditional-fields {{ 'show' if restaurant.invoice_footer_enabled else '' }}" id="footerFields">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Footer Note</label>
+                            <textarea name="invoice_footer_note" class="form-control" rows="3" placeholder="Thank you for dining with us!">{{ restaurant.invoice_footer_note or 'Thank you for dining with us!' }}</textarea>
+                            <div class="form-hint">This note will appear at the bottom of every invoice</div>
                         </div>
                     </div>
                 </div>
@@ -309,42 +296,10 @@
             <!-- Save Button -->
             <div style="text-align: center; padding: 20px 0;">
                 <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-lg"></i> Save Changes
+                    <i class="bi bi-check-lg"></i> Save Settings
                 </button>
             </div>
         </form>
-
-        <!-- Account Information -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title"><i class="bi bi-person"></i> Account Information</h3>
-            </div>
-            <div class="card-body">
-                <div class="account-section">
-                    <div class="account-info">
-                        <div class="account-avatar">{{ user.username[0]|upper }}</div>
-                        <div class="account-details">
-                            <h4>{{ user.username }}</h4>
-                            <p>{{ user.email }}</p>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                        <a href="{{ url_for('owner.change_password') }}" class="btn btn-outline">
-                            <i class="bi bi-key"></i> Change Password
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="card">
-            <div class="card-body" style="text-align: center; padding: 60px;">
-                <i class="bi bi-shop" style="font-size: 64px; color: var(--text-muted); margin-bottom: 20px;"></i>
-                <h3 style="margin-bottom: 12px;">No Restaurant Found</h3>
-                <p style="color: var(--text-secondary);">Please contact the administrator to set up your restaurant.</p>
-            </div>
-        </div>
-        {% endif %}
     </main>
 
     <script>
@@ -373,22 +328,8 @@
             document.querySelector('.sidebar-overlay').classList.toggle('open');
         }
 
-        function previewLogo(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('logoPreview');
-                    const icon = document.getElementById('logoIcon');
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                    if (icon) icon.style.display = 'none';
-                    // Auto submit after preview
-                    setTimeout(() => {
-                        document.getElementById('logoForm').submit();
-                    }, 500);
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
+        function toggleConditional(id, show) {
+            document.getElementById(id).classList.toggle('show', show);
         }
     </script>
 </body>

@@ -2,12 +2,12 @@
 Restaurant Owner Routes - Completely separate from admin system
 URL Pattern: /<restaurant_id>/* for each restaurant
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g, jsonify, current_app
 from functools import wraps
 from app import db
 from app.models import User, Restaurant, Order, Category, Table, MenuItem
 from app.services.qr_service import generate_restaurant_qr_code
-from datetime import datetime
+from datetime import datetime, timedelta
 
 owner_bp = Blueprint('owner', __name__)
 
@@ -221,21 +221,80 @@ def dashboard(restaurant_id):
 
     restaurant = user.restaurant
 
-    # Get restaurant statistics
+    # Get date filter parameters
+    filter_type = request.args.get('filter', 'today')  # today, week, month, custom
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+
+    today = datetime.utcnow().date()
+
+    # Calculate date range based on filter
+    if filter_type == 'today':
+        start_date = today
+        end_date = today
+    elif filter_type == 'week':
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif filter_type == 'month':
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif filter_type == 'custom' and start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = today
+            end_date = today
+    else:
+        start_date = today
+        end_date = today
+
+    # Get filtered orders
+    filtered_orders = Order.query.filter(
+        Order.restaurant_id == restaurant.id,
+        db.func.date(Order.created_at) >= start_date,
+        db.func.date(Order.created_at) <= end_date
+    ).all()
+
+    # Calculate statistics for the filtered period
+    filtered_order_count = len(filtered_orders)
+    filtered_revenue = sum(order.total_price for order in filtered_orders)
+    filtered_completed = len([o for o in filtered_orders if o.status == 'completed'])
+    filtered_pending = len([o for o in filtered_orders if o.status == 'pending'])
+    filtered_preparing = len([o for o in filtered_orders if o.status == 'preparing'])
+    filtered_cancelled = len([o for o in filtered_orders if o.status == 'cancelled'])
+
+    # Calculate average order value
+    avg_order_value = filtered_revenue / filtered_order_count if filtered_order_count > 0 else 0
+
+    # Get top selling items for the period
+    item_sales = {}
+    for order in filtered_orders:
+        for item in order.items:
+            item_id = item.menu_item_id
+            if item_id not in item_sales:
+                item_sales[item_id] = {'name': item.menu_item.name if item.menu_item else 'Unknown', 'quantity': 0, 'revenue': 0}
+            item_sales[item_id]['quantity'] += item.quantity
+            item_sales[item_id]['revenue'] += item.subtotal
+
+    top_items = sorted(item_sales.values(), key=lambda x: x['quantity'], reverse=True)[:5]
+
+    # Get daily revenue data for chart (last 7 days or filtered period)
+    chart_days = min((end_date - start_date).days + 1, 30)
+    daily_data = []
+    for i in range(chart_days):
+        day = end_date - timedelta(days=chart_days - 1 - i)
+        day_orders = [o for o in filtered_orders if o.created_at.date() == day]
+        day_revenue = sum(o.total_price for o in day_orders)
+        daily_data.append({
+            'date': day.strftime('%b %d'),
+            'revenue': round(day_revenue, 2),
+            'orders': len(day_orders)
+        })
+
+    # Get overall restaurant statistics
     total_orders = Order.query.filter_by(restaurant_id=restaurant.id).count()
     pending_orders = Order.query.filter_by(restaurant_id=restaurant.id, status='pending').count()
-    today = datetime.utcnow().date()
-    today_orders = Order.query.filter(
-        Order.restaurant_id == restaurant.id,
-        db.func.date(Order.created_at) == today
-    ).count()
-
-    # Calculate today's revenue
-    today_orders_list = Order.query.filter(
-        Order.restaurant_id == restaurant.id,
-        db.func.date(Order.created_at) == today
-    ).all()
-    today_revenue = sum(order.total_price for order in today_orders_list)
 
     # Get categories and menu items
     categories = Category.query.filter_by(restaurant_id=restaurant.id).order_by(Category.sort_order).all()
@@ -244,16 +303,32 @@ def dashboard(restaurant_id):
     # Get tables
     tables = Table.query.filter_by(restaurant_id=restaurant.id).all()
 
-    # Get recent orders
-    recent_orders = Order.query.filter_by(restaurant_id=restaurant.id).order_by(Order.created_at.desc()).limit(5).all()
+    # Get recent orders (last 10)
+    recent_orders = Order.query.filter_by(restaurant_id=restaurant.id).order_by(Order.created_at.desc()).limit(10).all()
 
     return render_template('owner/dashboard.html',
         user=user,
         restaurant=restaurant,
+        # Filter info
+        filter_type=filter_type,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        # Filtered statistics
+        filtered_orders=filtered_order_count,
+        filtered_revenue=filtered_revenue,
+        filtered_completed=filtered_completed,
+        filtered_pending=filtered_pending,
+        filtered_preparing=filtered_preparing,
+        filtered_cancelled=filtered_cancelled,
+        avg_order_value=avg_order_value,
+        # Chart data
+        daily_data=daily_data,
+        top_items=top_items,
+        # Overall stats
         total_orders=total_orders,
         pending_orders=pending_orders,
-        today_orders=today_orders,
-        today_revenue=today_revenue,
+        today_orders=len([o for o in filtered_orders if o.created_at.date() == today]),
+        today_revenue=sum(o.total_price for o in filtered_orders if o.created_at.date() == today),
         categories=categories,
         total_items=total_items,
         tables=tables,
@@ -281,6 +356,117 @@ def generate_qr(restaurant_id):
         flash(f'Error generating QR code: {str(e)}', 'error')
 
     return redirect(url_for('owner.dashboard', restaurant_id=restaurant_id))
+
+
+@owner_bp.route('/order/<order_number>/invoice')
+@owner_required
+def order_invoice(order_number):
+    """Generate invoice for an order"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('Restaurant not found', 'error')
+        return redirect(url_for('owner.orders'))
+
+    order = Order.query.filter_by(
+        order_number=order_number,
+        restaurant_id=user.restaurant.id
+    ).first()
+
+    if not order:
+        flash('Order not found', 'error')
+        return redirect(url_for('owner.orders'))
+
+    return render_template('owner/invoice.html',
+        order=order,
+        restaurant=user.restaurant,
+        user=user
+    )
+
+
+@owner_bp.route('/upload-logo', methods=['POST'])
+@owner_required
+def upload_logo():
+    """Upload restaurant logo"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('Restaurant not found', 'error')
+        return redirect(url_for('owner.profile'))
+
+    if 'logo' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('owner.profile'))
+
+    file = request.files['logo']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('owner.profile'))
+
+    if file:
+        from werkzeug.utils import secure_filename
+        import os
+
+        # Allowed extensions
+        ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+        def allowed_file(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+        if not allowed_file(file.filename):
+            flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP', 'error')
+            return redirect(url_for('owner.profile'))
+
+        # Create upload directory if not exists
+        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'logos')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Delete old logo if exists
+        if user.restaurant.logo_path:
+            old_logo = os.path.join(upload_dir, user.restaurant.logo_path)
+            if os.path.exists(old_logo):
+                os.remove(old_logo)
+
+        # Save new logo
+        filename = f"restaurant_{user.restaurant.id}_{secure_filename(file.filename)}"
+        file_path = os.path.join(upload_dir, filename)
+        file.save(file_path)
+
+        # Update database
+        user.restaurant.logo_path = filename
+        db.session.commit()
+
+        flash('Logo uploaded successfully!', 'success')
+
+    return redirect(url_for('owner.profile'))
+
+
+@owner_bp.route('/delete-logo', methods=['POST'])
+@owner_required
+def delete_logo():
+    """Delete restaurant logo"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('Restaurant not found', 'error')
+        return redirect(url_for('owner.profile'))
+
+    if user.restaurant.logo_path:
+        import os
+        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'logos')
+        logo_path = os.path.join(upload_dir, user.restaurant.logo_path)
+
+        if os.path.exists(logo_path):
+            os.remove(logo_path)
+
+        user.restaurant.logo_path = None
+        db.session.commit()
+
+        flash('Logo deleted successfully!', 'success')
+    else:
+        flash('No logo to delete', 'error')
+
+    return redirect(url_for('owner.profile'))
 
 
 @owner_bp.route('/orders')
@@ -358,10 +544,16 @@ def menu():
 
     categories = Category.query.filter_by(restaurant_id=user.restaurant.id).order_by(Category.sort_order).all()
 
-    return render_template('owner/menu_management.html',
+    # Calculate total items and available items
+    total_items = sum(len(cat.items) for cat in categories)
+    available_items = sum(len([item for item in cat.items if item.is_available]) for cat in categories)
+
+    return render_template('owner/menu.html',
         user=user,
         restaurant=user.restaurant,
-        categories=categories
+        categories=categories,
+        total_items=total_items,
+        available_items=available_items
     )
 
 
@@ -376,6 +568,7 @@ def add_category():
 
     name = request.form.get('name')
     description = request.form.get('description', '')
+    sort_order = request.form.get('sort_order', 0, type=int)
 
     if not name:
         flash('Category name is required', 'error')
@@ -385,13 +578,59 @@ def add_category():
         name=name,
         description=description,
         restaurant_id=user.restaurant.id,
-        sort_order=Category.query.filter_by(restaurant_id=user.restaurant.id).count() + 1
+        sort_order=sort_order or Category.query.filter_by(restaurant_id=user.restaurant.id).count() + 1
     )
 
     db.session.add(category)
     db.session.commit()
 
     flash('Category added successfully', 'success')
+    return redirect(url_for('owner.menu'))
+
+
+@owner_bp.route('/menu/category/<int:category_id>/edit', methods=['POST'])
+@owner_required
+def edit_category(category_id):
+    """Edit category"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return redirect(url_for('owner.dashboard'))
+
+    category = Category.query.filter_by(id=category_id, restaurant_id=user.restaurant.id).first()
+    if not category:
+        flash('Category not found', 'error')
+        return redirect(url_for('owner.menu'))
+
+    category.name = request.form.get('name', category.name)
+    category.description = request.form.get('description', category.description)
+    category.sort_order = request.form.get('sort_order', category.sort_order, type=int)
+
+    db.session.commit()
+    flash('Category updated successfully', 'success')
+    return redirect(url_for('owner.menu'))
+
+
+@owner_bp.route('/menu/category/<int:category_id>/delete', methods=['POST'])
+@owner_required
+def delete_category(category_id):
+    """Delete category and all its items"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return redirect(url_for('owner.dashboard'))
+
+    category = Category.query.filter_by(id=category_id, restaurant_id=user.restaurant.id).first()
+    if not category:
+        flash('Category not found', 'error')
+        return redirect(url_for('owner.menu'))
+
+    # Delete all items in category first
+    MenuItem.query.filter_by(category_id=category.id).delete()
+    db.session.delete(category)
+    db.session.commit()
+
+    flash('Category deleted successfully', 'success')
     return redirect(url_for('owner.menu'))
 
 
@@ -661,13 +900,64 @@ def import_menu_csv():
     return redirect(url_for('owner.menu'))
 
 
-@owner_bp.route('/profile')
+@owner_bp.route('/profile', methods=['GET', 'POST'])
 @owner_required
 def profile():
-    """View owner profile"""
+    """View and edit restaurant profile"""
     user = get_current_owner()
 
+    if request.method == 'POST':
+        if not user.restaurant:
+            flash('No restaurant found', 'error')
+            return redirect(url_for('owner.profile'))
+
+        # Update restaurant info
+        user.restaurant.name = request.form.get('name', user.restaurant.name)
+        user.restaurant.description = request.form.get('description', user.restaurant.description)
+        user.restaurant.address = request.form.get('address', user.restaurant.address)
+        user.restaurant.phone = request.form.get('phone', user.restaurant.phone)
+        user.restaurant.email = request.form.get('email', user.restaurant.email)
+        user.restaurant.website = request.form.get('website', user.restaurant.website)
+
+        db.session.commit()
+        flash('Restaurant profile updated successfully!', 'success')
+        return redirect(url_for('owner.profile'))
+
     return render_template('owner/profile.html',
+        user=user,
+        restaurant=user.restaurant
+    )
+
+
+@owner_bp.route('/settings', methods=['GET', 'POST'])
+@owner_required
+def settings():
+    """Restaurant settings - Tax, Invoice, etc."""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+
+    if request.method == 'POST':
+        # Tax Settings
+        user.restaurant.sst_enabled = request.form.get('sst_enabled') == 'on'
+        user.restaurant.sst_registration_no = request.form.get('sst_registration_no', '')
+        user.restaurant.sst_rate = float(request.form.get('sst_rate', 6.0) or 6.0)
+
+        user.restaurant.service_tax_enabled = request.form.get('service_tax_enabled') == 'on'
+        user.restaurant.service_tax_rate = float(request.form.get('service_tax_rate', 10.0) or 10.0)
+
+        # Invoice Settings
+        user.restaurant.invoice_footer_enabled = request.form.get('invoice_footer_enabled') == 'on'
+        user.restaurant.invoice_footer_note = request.form.get('invoice_footer_note', '')
+        user.restaurant.currency_symbol = request.form.get('currency_symbol', '$')
+
+        db.session.commit()
+        flash('Settings saved successfully!', 'success')
+        return redirect(url_for('owner.settings'))
+
+    return render_template('owner/settings.html',
         user=user,
         restaurant=user.restaurant
     )

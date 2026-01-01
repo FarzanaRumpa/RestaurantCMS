@@ -31,6 +31,64 @@
             --accent-glow: rgba(102, 126, 234, 0.3);
         }
 
+        /* Light Mode */
+        body.light-mode {
+            --bg-dark: #f0f2f5;
+            --bg-card: #ffffff;
+            --border: #e0e0e0;
+            --text-primary: #1a1a2e;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --status-preparing-bg: rgba(255, 165, 2, 0.08);
+            --status-preparing-glow: rgba(255, 165, 2, 0.15);
+            --status-ready-bg: rgba(46, 213, 115, 0.08);
+            --status-ready-glow: rgba(46, 213, 115, 0.2);
+        }
+
+        body.light-mode .cd-header,
+        body.light-mode .cd-footer {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        body.light-mode .order-panel {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        body.light-mode .bg-animation::before,
+        body.light-mode .bg-animation::after {
+            opacity: 0.3;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--accent);
+        }
+
+        .theme-toggle i {
+            font-size: 18px;
+            color: var(--accent);
+        }
+
+        .theme-toggle span {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -523,6 +581,14 @@
             </div>
 
             <div class="cd-clock">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+                    <i class="bi bi-sun-fill" id="themeIcon"></i>
+                    <span id="themeLabel">Light</span>
+                </button>
+                <button class="theme-toggle" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+                    <i class="bi bi-arrows-fullscreen" id="fullscreenIcon"></i>
+                    <span>Fullscreen</span>
+                </button>
                 <div class="live-badge">
                     <span class="live-dot"></span>
                     <span>LIVE</span>
@@ -620,6 +686,31 @@
         let previousReadyOrders = [];
         let audioContext = null;
 
+        // ===== THEME TOGGLE =====
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+
+            body.classList.toggle('light-mode');
+            const isLight = body.classList.contains('light-mode');
+
+            icon.className = isLight ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+            label.textContent = isLight ? 'Dark' : 'Light';
+
+            localStorage.setItem('customer-theme', isLight ? 'light' : 'dark');
+        }
+
+        // Load saved theme
+        (function() {
+            const savedTheme = localStorage.getItem('customer-theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+                document.getElementById('themeIcon').className = 'bi bi-moon-fill';
+                document.getElementById('themeLabel').textContent = 'Dark';
+            }
+        })();
+
         // ===== CLOCK =====
         function updateClock() {
             const now = new Date();
@@ -628,6 +719,25 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // ===== FULLSCREEN =====
+        function toggleFullscreen() {
+            const icon = document.getElementById('fullscreenIcon');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                icon.className = 'bi bi-fullscreen-exit';
+            } else {
+                document.exitFullscreen();
+                icon.className = 'bi bi-arrows-fullscreen';
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const icon = document.getElementById('fullscreenIcon');
+            if (!document.fullscreenElement) {
+                icon.className = 'bi bi-arrows-fullscreen';
+            }
+        });
 
         // ===== SOUND =====
         function playReadySound() {

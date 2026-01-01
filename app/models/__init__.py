@@ -49,8 +49,24 @@ class Restaurant(db.Model):
     description = db.Column(db.Text)
     address = db.Column(db.String(255))
     phone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    website = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
     qr_code_path = db.Column(db.String(255))  # Main restaurant QR code
+    logo_path = db.Column(db.String(255))  # Restaurant logo image
+
+    # Tax & Invoice Settings
+    sst_enabled = db.Column(db.Boolean, default=False)
+    sst_registration_no = db.Column(db.String(50))
+    sst_rate = db.Column(db.Float, default=6.0)  # Default 6% SST
+    service_tax_enabled = db.Column(db.Boolean, default=False)
+    service_tax_rate = db.Column(db.Float, default=10.0)  # Default 10% service tax
+    invoice_footer_enabled = db.Column(db.Boolean, default=True)
+    invoice_footer_note = db.Column(db.Text, default='Thank you for dining with us!')
+
+    # Currency
+    currency_symbol = db.Column(db.String(10), default='$')
+
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
