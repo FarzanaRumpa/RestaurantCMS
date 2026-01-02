@@ -907,6 +907,10 @@
                     <i class="bi bi-menu-button-wide"></i>
                     Menu
                 </a>
+                <a href="{{ url_for('owner.tables') }}" class="nav-item">
+                    <i class="bi bi-grid-3x3"></i>
+                    Tables & QR
+                </a>
             </div>
 
             <div class="nav-section">
@@ -1020,11 +1024,11 @@
                         <i class="bi bi-currency-dollar"></i>
                     </div>
                     <span class="stat-trend up">
-                        <i class="bi bi-graph-up"></i> Revenue
+                        <i class="bi bi-graph-up"></i> Sales
                     </span>
                 </div>
-                <div class="stat-value">${{ "%.2f"|format(filtered_revenue) }}</div>
-                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value">{{ restaurant.currency_symbol or '$' }}{{ "%.2f"|format(filtered_revenue) }}</div>
+                <div class="stat-label">Total Sales</div>
             </div>
 
             <div class="stat-card">
@@ -1036,7 +1040,7 @@
                         <i class="bi bi-calculator"></i> Average
                     </span>
                 </div>
-                <div class="stat-value">${{ "%.2f"|format(avg_order_value) }}</div>
+                <div class="stat-value">{{ restaurant.currency_symbol or '$' }}{{ "%.2f"|format(avg_order_value) }}</div>
                 <div class="stat-label">Avg Order Value</div>
             </div>
 
@@ -1076,10 +1080,10 @@
 
         <!-- Charts Row -->
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
-            <!-- Revenue Chart -->
+            <!-- Sales Chart -->
             <div class="card" style="margin: 0;">
                 <div class="card-header">
-                    <h3 class="card-title"><i class="bi bi-bar-chart-fill"></i> Revenue Trend</h3>
+                    <h3 class="card-title"><i class="bi bi-bar-chart-fill"></i> Sales Trend</h3>
                 </div>
                 <div class="card-body" style="height: 300px;">
                     <canvas id="revenueChart"></canvas>
@@ -1100,7 +1104,7 @@
                                 <div style="font-weight: 600;">{{ item.name }}</div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">{{ item.quantity }} sold</div>
                             </div>
-                            <div style="font-weight: 700; color: var(--accent-green);">${{ "%.2f"|format(item.revenue) }}</div>
+                            <div style="font-weight: 700; color: var(--accent-green);">{{ restaurant.currency_symbol or '$' }}{{ "%.2f"|format(item.revenue) }}</div>
                         </div>
                         {% endfor %}
                     </div>
@@ -1189,7 +1193,7 @@
                                     <td class="order-id">#{{ order.order_number[-6:] }}</td>
                                     <td>Table {{ order.table_number }}</td>
                                     <td>{{ order.items|length }} items</td>
-                                    <td><strong>${{ "%.2f"|format(order.total_price) }}</strong></td>
+                                    <td><strong>{{ restaurant.currency_symbol or '$' }}{{ "%.2f"|format(order.total_price) }}</strong></td>
                                     <td>
                                         <span class="order-status {{ order.status }}">
                                             <i class="bi bi-{% if order.status == 'pending' %}clock{% elif order.status == 'preparing' %}fire{% elif order.status == 'ready' %}check-circle{% else %}bag-check{% endif %}"></i>
@@ -1385,7 +1389,7 @@
             }
         }
 
-        // Revenue Chart
+        // Sales Chart
         const dailyData = {{ daily_data | tojson | safe }};
 
         if (dailyData && dailyData.length > 0) {
@@ -1395,7 +1399,7 @@
                 data: {
                     labels: dailyData.map(d => d.date),
                     datasets: [{
-                        label: 'Revenue ($)',
+                        label: 'Sales ({{ restaurant.currency_symbol or "$" }})',
                         data: dailyData.map(d => d.revenue),
                         backgroundColor: 'rgba(99, 102, 241, 0.5)',
                         borderColor: 'rgba(99, 102, 241, 1)',

@@ -556,6 +556,10 @@
                     <i class="bi bi-palette"></i>
                     <span>Media & Theme</span>
                 </a>
+                <a href="{{ url_for('admin.qr_settings') }}" class="nav-link {% if request.endpoint == 'admin.qr_settings' %}active{% endif %}">
+                    <i class="bi bi-qr-code-scan"></i>
+                    <span>QR Templates</span>
+                </a>
                 <a href="{{ url_for('admin.domain_config') }}" class="nav-link {% if request.endpoint == 'admin.domain_config' %}active{% endif %}">
                     <i class="bi bi-globe"></i>
                     <span>Domain</span>

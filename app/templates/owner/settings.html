@@ -156,6 +156,7 @@
                 <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
                 <a href="{{ url_for('owner.orders') }}" class="nav-item"><i class="bi bi-receipt"></i>Orders</a>
                 <a href="{{ url_for('owner.menu') }}" class="nav-item"><i class="bi bi-menu-button-wide"></i>Menu</a>
+                <a href="{{ url_for('owner.tables') }}" class="nav-item"><i class="bi bi-grid-3x3"></i>Tables & QR</a>
                 {% endif %}
             </div>
             {% if restaurant %}
@@ -288,6 +289,99 @@
                             <label class="form-label">Footer Note</label>
                             <textarea name="invoice_footer_note" class="form-control" rows="3" placeholder="Thank you for dining with us!">{{ restaurant.invoice_footer_note or 'Thank you for dining with us!' }}</textarea>
                             <div class="form-hint">This note will appear at the bottom of every invoice</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operating Hours -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="bi bi-clock"></i> Operating Hours</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Opening Time</label>
+                            <input type="time" name="opening_time" class="form-control" value="{{ restaurant.opening_time or '09:00' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Closing Time</label>
+                            <input type="time" name="closing_time" class="form-control" value="{{ restaurant.closing_time or '22:00' }}">
+                        </div>
+                    </div>
+                    <div class="form-hint">Set your restaurant's daily operating hours</div>
+                </div>
+            </div>
+
+            <!-- Ordering Settings -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="bi bi-cart"></i> Ordering Settings</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Minimum Order Amount ({{ restaurant.currency_symbol or '$' }})</label>
+                        <input type="number" name="min_order_amount" class="form-control" value="{{ restaurant.min_order_amount or 0 }}" step="0.01" min="0" style="max-width: 200px;">
+                        <div class="form-hint">Set minimum order amount (0 for no minimum)</div>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Enable Dine-In Orders</h4>
+                            <p>Allow customers to order for dine-in</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="enable_dine_in" {{ 'checked' if restaurant.enable_dine_in else '' }}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Enable Takeaway Orders</h4>
+                            <p>Allow customers to order for takeaway</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="enable_takeaway" {{ 'checked' if restaurant.enable_takeaway else '' }}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Auto-Accept Orders</h4>
+                            <p>Automatically accept new orders without manual confirmation</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="auto_accept_orders" {{ 'checked' if restaurant.auto_accept_orders else '' }}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="bi bi-bell"></i> Notification Settings</h3>
+                </div>
+                <div class="card-body">
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Order Notifications</h4>
+                            <p>Receive email notifications for new orders</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="order_notification_enabled" id="notifEnabled" {{ 'checked' if restaurant.order_notification_enabled else '' }} onchange="toggleConditional('notifFields', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="conditional-fields {{ 'show' if restaurant.order_notification_enabled else '' }}" id="notifFields">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Notification Email</label>
+                            <input type="email" name="order_notification_email" class="form-control" value="{{ restaurant.order_notification_email or restaurant.email or '' }}" placeholder="orders@restaurant.com">
+                            <div class="form-hint">Email address to receive order notifications</div>
                         </div>
                     </div>
                 </div>

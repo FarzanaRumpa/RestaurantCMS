@@ -467,10 +467,10 @@
                 {% if pending_orders %}
                     {% for order in pending_orders %}
                     <div class="order-tile pending">
-                        <span class="order-number">#{{ order.order_number[-4:] }}</span>
+                        <span class="order-number">{{ order.order_number|replace('ORD-', '')|replace('#', '')[-4:] }}</span>
                         <div class="order-table">
                             <i class="bi bi-geo-alt-fill"></i>
-                            Table {{ order.table_number }}
+                            T{{ order.table_number }}
                         </div>
                     </div>
                     {% endfor %}
@@ -498,10 +498,10 @@
                 {% if preparing_orders %}
                     {% for order in preparing_orders %}
                     <div class="order-tile preparing">
-                        <span class="order-number">#{{ order.order_number[-4:] }}</span>
+                        <span class="order-number">{{ order.order_number|replace('ORD-', '')|replace('#', '')[-4:] }}</span>
                         <div class="order-table">
                             <i class="bi bi-geo-alt-fill"></i>
-                            Table {{ order.table_number }}
+                            T{{ order.table_number }}
                         </div>
                     </div>
                     {% endfor %}
@@ -529,10 +529,10 @@
                 {% if ready_orders %}
                     {% for order in ready_orders %}
                     <div class="order-tile ready">
-                        <span class="order-number">#{{ order.order_number[-4:] }}</span>
+                        <span class="order-number">{{ order.order_number|replace('ORD-', '')|replace('#', '')[-4:] }}</span>
                         <div class="order-table">
                             <i class="bi bi-geo-alt-fill"></i>
-                            Table {{ order.table_number }}
+                            T{{ order.table_number }}
                         </div>
                     </div>
                     {% endfor %}
@@ -634,15 +634,18 @@
                     </div>
                 `;
             } else {
-                list.innerHTML = orders.map(order => `
-                    <div class="order-tile ${status}">
-                        <span class="order-number">#${order.order_number.slice(-4)}</span>
-                        <div class="order-table">
-                            <i class="bi bi-geo-alt-fill"></i>
-                            Table ${order.table_number}
+                list.innerHTML = orders.map(order => {
+                    const shortNum = order.order_number.replace(/[^0-9]/g, '').slice(-4) || order.order_number.slice(-4);
+                    return `
+                        <div class="order-tile ${status}">
+                            <span class="order-number">${shortNum}</span>
+                            <div class="order-table">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                T${order.table_number}
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
         }
 

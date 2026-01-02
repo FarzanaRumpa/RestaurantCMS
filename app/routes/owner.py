@@ -953,6 +953,20 @@ def settings():
         user.restaurant.invoice_footer_note = request.form.get('invoice_footer_note', '')
         user.restaurant.currency_symbol = request.form.get('currency_symbol', '$')
 
+        # Operating Hours
+        user.restaurant.opening_time = request.form.get('opening_time', '09:00')
+        user.restaurant.closing_time = request.form.get('closing_time', '22:00')
+
+        # Ordering Settings
+        user.restaurant.min_order_amount = float(request.form.get('min_order_amount', 0.0) or 0.0)
+        user.restaurant.enable_takeaway = request.form.get('enable_takeaway') == 'on'
+        user.restaurant.enable_dine_in = request.form.get('enable_dine_in') == 'on'
+        user.restaurant.auto_accept_orders = request.form.get('auto_accept_orders') == 'on'
+
+        # Notification Settings
+        user.restaurant.order_notification_email = request.form.get('order_notification_email', '')
+        user.restaurant.order_notification_enabled = request.form.get('order_notification_enabled') == 'on'
+
         db.session.commit()
         flash('Settings saved successfully!', 'success')
         return redirect(url_for('owner.settings'))
@@ -961,6 +975,247 @@ def settings():
         user=user,
         restaurant=user.restaurant
     )
+
+
+# ============= TABLE MANAGEMENT =============
+
+@owner_bp.route('/tables')
+@owner_required
+def tables():
+    """Table management page"""
+    user = get_current_owner()
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+
+    tables = Table.query.filter_by(restaurant_id=user.restaurant.id).order_by(Table.table_number).all()
+    return render_template('owner/tables.html', user=user, restaurant=user.restaurant, tables=tables)
+
+
+@owner_bp.route('/tables/add', methods=['POST'])
+@owner_required
+def add_table():
+    """Add a new table"""
+    from app.services.qr_service import generate_printable_table_qr
+
+    user = get_current_owner()
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    table_number = request.form.get('table_number')
+    table_name = request.form.get('table_name', '').strip() or None
+    capacity = request.form.get('capacity', 4)
+
+    try:
+        table_number = int(table_number)
+        capacity = int(capacity)
+    except (ValueError, TypeError):
+        flash('Invalid table number or capacity', 'error')
+        return redirect(url_for('owner.tables'))
+
+    # Check if table number already exists
+    existing = Table.query.filter_by(restaurant_id=user.restaurant.id, table_number=table_number).first()
+    if existing:
+        flash(f'Table {table_number} already exists', 'error')
+        return redirect(url_for('owner.tables'))
+
+    # Create table
+    table = Table(
+        table_number=table_number,
+        table_name=table_name,
+        capacity=capacity,
+        restaurant_id=user.restaurant.id
+    )
+    db.session.add(table)
+    db.session.flush()  # Get the table ID
+
+    # Generate QR code
+    try:
+        qr_filename = generate_printable_table_qr(user.restaurant, table)
+        table.qr_code_path = qr_filename
+    except Exception as e:
+        current_app.logger.error(f'QR generation error: {e}')
+
+    db.session.commit()
+    flash(f'Table {table_number} added successfully!', 'success')
+    return redirect(url_for('owner.tables'))
+
+
+@owner_bp.route('/tables/<int:table_id>/edit', methods=['POST'])
+@owner_required
+def edit_table(table_id):
+    """Edit a table"""
+    user = get_current_owner()
+    table = Table.query.filter_by(id=table_id, restaurant_id=user.restaurant.id).first()
+
+    if not table:
+        flash('Table not found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    table_name = request.form.get('table_name', '').strip() or None
+    capacity = request.form.get('capacity', 4)
+    is_active = request.form.get('is_active') == 'on'
+
+    try:
+        table.capacity = int(capacity)
+    except (ValueError, TypeError):
+        table.capacity = 4
+
+    table.table_name = table_name
+    table.is_active = is_active
+    db.session.commit()
+
+    flash(f'Table {table.table_number} updated!', 'success')
+    return redirect(url_for('owner.tables'))
+
+
+@owner_bp.route('/tables/<int:table_id>/delete', methods=['POST'])
+@owner_required
+def delete_table(table_id):
+    """Delete a table"""
+    user = get_current_owner()
+    table = Table.query.filter_by(id=table_id, restaurant_id=user.restaurant.id).first()
+
+    if not table:
+        flash('Table not found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    # Delete QR code file
+    if table.qr_code_path:
+        import os
+        qr_path = os.path.join(current_app.config['QR_CODE_FOLDER'], table.qr_code_path)
+        if os.path.exists(qr_path):
+            os.remove(qr_path)
+
+    db.session.delete(table)
+    db.session.commit()
+    flash(f'Table {table.table_number} deleted!', 'success')
+    return redirect(url_for('owner.tables'))
+
+
+@owner_bp.route('/tables/<int:table_id>/regenerate-qr', methods=['POST'])
+@owner_required
+def regenerate_table_qr(table_id):
+    """Regenerate QR code for a table"""
+    from app.services.qr_service import generate_printable_table_qr
+
+    user = get_current_owner()
+    table = Table.query.filter_by(id=table_id, restaurant_id=user.restaurant.id).first()
+
+    if not table:
+        flash('Table not found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    try:
+        qr_filename = generate_printable_table_qr(user.restaurant, table)
+        table.qr_code_path = qr_filename
+        db.session.commit()
+        flash(f'QR code regenerated for Table {table.table_number}!', 'success')
+    except Exception as e:
+        flash(f'Error generating QR: {str(e)}', 'error')
+
+    return redirect(url_for('owner.tables'))
+
+
+@owner_bp.route('/tables/regenerate-all', methods=['POST'])
+@owner_required
+def regenerate_all_qrs():
+    """Regenerate QR codes for all tables"""
+    from app.services.qr_service import generate_all_table_qrs
+
+    user = get_current_owner()
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    try:
+        generated = generate_all_table_qrs(user.restaurant)
+        db.session.commit()
+        flash(f'Regenerated QR codes for {len(generated)} tables!', 'success')
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
+
+    return redirect(url_for('owner.tables'))
+
+
+@owner_bp.route('/tables/<int:table_id>/qr')
+@owner_required
+def download_table_qr(table_id):
+    """Download printable QR code for a table"""
+    from flask import send_file
+    import os
+
+    user = get_current_owner()
+    table = Table.query.filter_by(id=table_id, restaurant_id=user.restaurant.id).first()
+
+    if not table or not table.qr_code_path:
+        flash('QR code not found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    qr_path = os.path.join(current_app.config['QR_CODE_FOLDER'], table.qr_code_path)
+    if os.path.exists(qr_path):
+        return send_file(
+            qr_path,
+            as_attachment=True,
+            download_name=f'{user.restaurant.name}_Table_{table.table_number}_QR.png'
+        )
+
+    flash('QR file not found', 'error')
+    return redirect(url_for('owner.tables'))
+
+
+@owner_bp.route('/tables/add-bulk', methods=['POST'])
+@owner_required
+def add_bulk_tables():
+    """Add multiple tables at once"""
+    from app.services.qr_service import generate_printable_table_qr
+
+    user = get_current_owner()
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.tables'))
+
+    count = request.form.get('count', 0)
+    start_from = request.form.get('start_from', 1)
+    capacity = request.form.get('capacity', 4)
+
+    try:
+        count = int(count)
+        start_from = int(start_from)
+        capacity = int(capacity)
+    except (ValueError, TypeError):
+        flash('Invalid input', 'error')
+        return redirect(url_for('owner.tables'))
+
+    if count < 1 or count > 100:
+        flash('Count must be between 1 and 100', 'error')
+        return redirect(url_for('owner.tables'))
+
+    added = 0
+    for i in range(count):
+        table_num = start_from + i
+        existing = Table.query.filter_by(restaurant_id=user.restaurant.id, table_number=table_num).first()
+        if not existing:
+            table = Table(
+                table_number=table_num,
+                capacity=capacity,
+                restaurant_id=user.restaurant.id
+            )
+            db.session.add(table)
+            db.session.flush()
+
+            try:
+                qr_filename = generate_printable_table_qr(user.restaurant, table)
+                table.qr_code_path = qr_filename
+            except:
+                pass
+
+            added += 1
+
+    db.session.commit()
+    flash(f'Added {added} tables!', 'success')
+    return redirect(url_for('owner.tables'))
 
 
 @owner_bp.route('/change-password', methods=['GET', 'POST'])

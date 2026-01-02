@@ -1350,6 +1350,65 @@ def update_domain():
     return redirect(url_for('admin.domain_config'))
 
 
+# ============= QR TEMPLATE SETTINGS =============
+
+@admin_bp.route('/qr-settings')
+@permission_required('settings')
+def qr_settings():
+    """QR Template Settings page"""
+    from app.models import QRTemplateSettings
+
+    current_user = get_current_admin_user()
+    settings = QRTemplateSettings.get_settings()
+
+    return render_template('admin/qr_settings.html',
+        current_user=current_user,
+        settings=settings
+    )
+
+
+@admin_bp.route('/qr-settings/update', methods=['POST'])
+@superadmin_required
+def update_qr_settings():
+    """Update QR Template Settings"""
+    from app.models import QRTemplateSettings
+
+    settings = QRTemplateSettings.get_settings()
+
+    settings.saas_name = request.form.get('saas_name', 'RestaurantCMS')
+    settings.primary_color = request.form.get('primary_color', '#6366f1')
+    settings.secondary_color = request.form.get('secondary_color', '#1a1a2e')
+    settings.scan_text = request.form.get('scan_text', 'Scan to View Menu')
+    settings.powered_by_text = request.form.get('powered_by_text', 'Powered by')
+    settings.show_powered_by = request.form.get('show_powered_by') == 'on'
+    settings.template_style = request.form.get('template_style', 'modern')
+
+    try:
+        settings.qr_size = int(request.form.get('qr_size', 200))
+    except (ValueError, TypeError):
+        settings.qr_size = 200
+
+    # Handle logo upload
+    if 'saas_logo' in request.files:
+        file = request.files['saas_logo']
+        if file and file.filename:
+            import os
+            from werkzeug.utils import secure_filename
+
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
+                logo_filename = f"saas_logo.{ext}"
+                logo_folder = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads'), 'logos')
+                os.makedirs(logo_folder, exist_ok=True)
+                file.save(os.path.join(logo_folder, logo_filename))
+                settings.saas_logo_path = logo_filename
+
+    db.session.commit()
+    flash('QR Template Settings updated successfully!', 'success')
+    return redirect(url_for('admin.qr_settings'))
+
+
 @admin_bp.route('/api-keys')
 @permission_required('api_keys')
 def api_keys():

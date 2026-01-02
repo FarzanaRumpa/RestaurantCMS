@@ -1,0 +1,150 @@
+{% extends "admin/base.html" %}
+
+{% block title %}QR Template Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">
+        <h1><i class="bi bi-qr-code-scan me-2"></i>QR Template Settings</h1>
+        <p class="text-muted">Customize the appearance of printable QR codes</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-palette me-2"></i>Template Customization</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('admin.update_qr_settings') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <h6 class="text-muted mb-3">Branding</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">SaaS/Platform Name</label>
+                            <input type="text" name="saas_name" class="form-control" value="{{ settings.saas_name or 'RestaurantCMS' }}">
+                            <small class="text-muted">This appears in "Powered by" text</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Platform Logo</label>
+                            <input type="file" name="saas_logo" class="form-control" accept="image/*">
+                            {% if settings.saas_logo_path %}
+                            <small class="text-success"><i class="bi bi-check-circle"></i> Logo uploaded</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-4">Colors</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Primary Color</label>
+                            <div class="input-group">
+                                <input type="color" name="primary_color" class="form-control form-control-color" value="{{ settings.primary_color or '#6366f1' }}" style="width: 60px;">
+                                <input type="text" class="form-control" value="{{ settings.primary_color or '#6366f1' }}" disabled>
+                            </div>
+                            <small class="text-muted">Used for accents and highlights</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Background Color</label>
+                            <div class="input-group">
+                                <input type="color" name="secondary_color" class="form-control form-control-color" value="{{ settings.secondary_color or '#1a1a2e' }}" style="width: 60px;">
+                                <input type="text" class="form-control" value="{{ settings.secondary_color or '#1a1a2e' }}" disabled>
+                            </div>
+                            <small class="text-muted">QR card background color</small>
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-4">Text Content</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Scan Instruction Text</label>
+                            <input type="text" name="scan_text" class="form-control" value="{{ settings.scan_text or 'Scan to View Menu' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Powered By Text</label>
+                            <input type="text" name="powered_by_text" class="form-control" value="{{ settings.powered_by_text or 'Powered by' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="show_powered_by" id="showPoweredBy" {{ 'checked' if settings.show_powered_by else '' }}>
+                            <label class="form-check-label" for="showPoweredBy">Show "Powered by" branding on QR cards</label>
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted mb-3 mt-4">Template Style</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Style</label>
+                            <select name="template_style" class="form-select">
+                                <option value="modern" {{ 'selected' if settings.template_style == 'modern' else '' }}>Modern (Dark)</option>
+                                <option value="minimal" {{ 'selected' if settings.template_style == 'minimal' else '' }}>Minimal</option>
+                                <option value="classic" {{ 'selected' if settings.template_style == 'classic' else '' }}>Classic</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">QR Code Size (pixels)</label>
+                            <input type="number" name="qr_size" class="form-control" value="{{ settings.qr_size or 200 }}" min="100" max="500">
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-eye me-2"></i>Preview</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="qr-preview" style="background: {{ settings.secondary_color or '#1a1a2e' }}; color: white; padding: 20px; border-radius: 12px; max-width: 250px; margin: 0 auto;">
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">RESTAURANT NAME</div>
+                    <div style="height: 2px; background: {{ settings.primary_color or '#6366f1' }}; margin-bottom: 12px;"></div>
+                    <div style="font-size: 24px; font-weight: 800; margin-bottom: 12px;">TABLE 1</div>
+                    <div style="background: white; width: 150px; height: 150px; margin: 0 auto 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-qr-code" style="font-size: 80px; color: {{ settings.secondary_color or '#1a1a2e' }};"></i>
+                    </div>
+                    <div style="font-size: 12px; margin-bottom: 8px;">{{ settings.scan_text or 'Scan to View Menu' }}</div>
+                    {% if settings.show_powered_by %}
+                    <div style="font-size: 10px; color: #666; margin-top: 16px;">{{ settings.powered_by_text or 'Powered by' }} {{ settings.saas_name or 'RestaurantCMS' }}</div>
+                    {% endif %}
+                    <div style="height: 4px; background: {{ settings.primary_color or '#6366f1' }}; margin-top: 16px; border-radius: 2px;"></div>
+                </div>
+                <p class="text-muted mt-3 small">This is a simplified preview. Actual QR cards are print-quality.</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i>How It Works</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled small text-muted">
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Restaurant owners add tables in their dashboard</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Each table gets a unique QR code automatically</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>QR cards are printable (3.5" × 5")</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Customers scan to view menu & order</li>
+                    <li><i class="bi bi-check-circle text-success me-2"></i>Orders are linked to the table automatically</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

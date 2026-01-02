@@ -319,34 +319,36 @@
 
         .lane-count {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 900;
-            padding: 6px 16px;
-            border-radius: 8px;
+            padding: 4px 12px;
+            border-radius: 6px;
             background: rgba(255,255,255,0.05);
         }
 
         .orders-scroll {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            align-content: start;
+            grid-auto-rows: min-content;
         }
 
         /* ===== ORDER CARDS ===== */
         .order-card {
             background: var(--bg-card);
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
-            border: 3px solid transparent;
+            border: 2px solid transparent;
             transition: all 0.3s ease;
             animation: slideIn 0.3s ease;
         }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-20px); }
+            from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -355,8 +357,8 @@
         .order-card.ready { border-color: var(--status-ready); }
 
         .order-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            transform: scale(1.01);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
         }
 
         /* Urgency levels based on wait time */
@@ -366,7 +368,7 @@
 
         @keyframes urgentPulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); }
-            50% { box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); }
+            50% { box-shadow: 0 0 0 6px rgba(255, 71, 87, 0); }
         }
 
         .order-card.critical {
@@ -379,26 +381,28 @@
             50% { background: rgba(255, 0, 0, 0.1); }
         }
 
-        /* Order Header */
+        /* Order Header - Compact */
         .order-header {
-            padding: 16px 20px;
+            padding: 10px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
         }
 
         .order-id {
             display: flex;
-            flex-direction: column;
-            gap: 4px;
+            align-items: center;
+            gap: 10px;
         }
 
         .order-number {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 32px;
+            font-size: 24px;
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
+        }
         }
 
         .order-card.new .order-number { color: var(--status-new); }
@@ -406,65 +410,69 @@
         .order-card.ready .order-number { color: var(--status-ready); }
 
         .order-type {
-            font-size: 12px;
+            font-size: 10px;
             color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            background: rgba(255,255,255,0.08);
+            padding: 3px 8px;
+            border-radius: 4px;
         }
 
         .order-meta {
-            text-align: right;
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
+            align-items: center;
+            gap: 8px;
         }
 
         .table-tag {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
+            gap: 4px;
+            padding: 5px 10px;
             background: rgba(255,255,255,0.08);
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: 700;
-            font-size: 16px;
+            font-size: 13px;
         }
 
         .table-tag i {
             color: var(--status-cooking);
+            font-size: 12px;
         }
 
-        /* Timer */
+        /* Timer - Compact */
         .order-timer {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 18px;
+            font-size: 13px;
             font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 6px;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
         }
+
+        .order-timer i { font-size: 12px; }
 
         .order-timer.ok { background: rgba(46, 213, 115, 0.2); color: var(--timer-ok); }
         .order-timer.warning { background: rgba(255, 165, 2, 0.2); color: var(--timer-warning); }
         .order-timer.urgent { background: rgba(255, 71, 87, 0.2); color: var(--timer-urgent); }
         .order-timer.critical { background: rgba(255, 0, 0, 0.3); color: var(--timer-critical); }
 
-        /* Order Items */
+        /* Order Items - Compact */
         .order-items {
-            padding: 16px 20px;
-            max-height: 250px;
+            padding: 8px 12px;
+            max-height: 140px;
             overflow-y: auto;
         }
 
         .item-row {
             display: flex;
-            align-items: flex-start;
-            padding: 12px 0;
+            align-items: center;
+            padding: 6px 0;
             border-bottom: 1px solid rgba(255,255,255,0.05);
-            gap: 14px;
+            gap: 10px;
         }
 
         .item-row:last-child {
@@ -472,15 +480,15 @@
         }
 
         .item-qty {
-            min-width: 44px;
-            height: 44px;
+            min-width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, var(--status-cooking), #ff6b35);
-            border-radius: 10px;
+            border-radius: 6px;
             font-weight: 900;
-            font-size: 20px;
+            font-size: 15px;
             font-family: 'JetBrains Mono', monospace;
         }
 
@@ -488,55 +496,61 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
+            min-width: 0;
         }
 
         .item-name {
-            font-size: 17px;
-            font-weight: 700;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .item-mods {
-            font-size: 13px;
+            font-size: 11px;
             color: var(--status-cooking);
             font-style: italic;
         }
 
         .item-notes {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 13px;
+            gap: 4px;
+            font-size: 11px;
             color: var(--status-new);
             background: var(--status-new-bg);
-            padding: 6px 10px;
-            border-radius: 6px;
-            margin-top: 6px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            margin-top: 2px;
         }
 
-        /* Order Actions */
+        .item-notes i { font-size: 10px; }
+
+        /* Order Actions - Compact */
         .order-actions {
-            padding: 16px 20px;
+            padding: 8px 12px;
             display: flex;
-            gap: 12px;
-            background: rgba(0,0,0,0.3);
+            gap: 8px;
+            background: rgba(0,0,0,0.2);
         }
 
         .btn-action {
             flex: 1;
-            padding: 18px 16px;
+            padding: 10px 12px;
             border: none;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 800;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 6px;
         }
 
         .btn-action:active {
@@ -544,7 +558,7 @@
         }
 
         .btn-action i {
-            font-size: 20px;
+            font-size: 14px;
         }
 
         .btn-start {
@@ -724,7 +738,7 @@
         /* ===== SCROLLBAR ===== */
         .orders-scroll::-webkit-scrollbar,
         .order-items::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
 
         .orders-scroll::-webkit-scrollbar-track,
@@ -735,13 +749,29 @@
         .orders-scroll::-webkit-scrollbar-thumb,
         .order-items::-webkit-scrollbar-thumb {
             background: var(--border);
-            border-radius: 4px;
+            border-radius: 3px;
         }
 
         /* ===== RESPONSIVE ===== */
+        @media (min-width: 1600px) {
+            .orders-scroll {
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .orders-scroll {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 10px;
+            }
+        }
+
         @media (max-width: 1200px) {
             .kds-stats { display: none; }
-            .order-lane { min-width: 350px; }
+            .order-lane { min-width: 320px; }
+            .orders-scroll {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
@@ -1029,6 +1059,9 @@
             const statusClass = order.status === 'pending' ? 'new' :
                                order.status === 'preparing' ? 'cooking' : 'ready';
 
+            // Get short order number (last 4 digits or chars)
+            const shortOrderNum = order.order_number.replace(/[^0-9]/g, '').slice(-4) || order.order_number.slice(-4);
+
             const itemsHtml = order.items.map(item => `
                 <div class="item-row">
                     <div class="item-qty">${item.quantity}</div>
@@ -1043,7 +1076,7 @@
             if (order.status === 'pending') {
                 actionsHtml = `
                     <button class="btn-action btn-start" onclick="updateStatus(${order.id}, 'preparing')">
-                        <i class="bi bi-fire"></i> Start Cooking
+                        <i class="bi bi-fire"></i> Start
                     </button>
                     <button class="btn-action btn-bump" onclick="updateStatus(${order.id}, 'cancelled')">
                         <i class="bi bi-x"></i>
@@ -1052,7 +1085,7 @@
             } else if (order.status === 'preparing') {
                 actionsHtml = `
                     <button class="btn-action btn-done" onclick="updateStatus(${order.id}, 'ready')">
-                        <i class="bi bi-check-lg"></i> Ready
+                        <i class="bi bi-check-lg"></i> Done
                     </button>
                     <button class="btn-action btn-bump" onclick="updateStatus(${order.id}, 'pending')">
                         <i class="bi bi-arrow-left"></i>
@@ -1061,7 +1094,7 @@
             } else if (order.status === 'ready') {
                 actionsHtml = `
                     <button class="btn-action btn-served" onclick="updateStatus(${order.id}, 'completed')">
-                        <i class="bi bi-bag-check"></i> Served
+                        <i class="bi bi-bag-check"></i> Serve
                     </button>
                     <button class="btn-action btn-bump" onclick="recallOrder(${order.id})">
                         <i class="bi bi-arrow-counterclockwise"></i>
@@ -1073,14 +1106,10 @@
                 <div class="order-card ${statusClass} ${urgencyClass}" data-order-id="${order.id}" data-created="${order.created_at_full}">
                     <div class="order-header">
                         <div class="order-id">
-                            <div class="order-number">#${order.order_number.slice(-4)}</div>
-                            <div class="order-type">DINE IN</div>
+                            <div class="order-number">${shortOrderNum}</div>
+                            <span class="order-type">T${order.table_number}</span>
                         </div>
                         <div class="order-meta">
-                            <div class="table-tag">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                Table ${order.table_number}
-                            </div>
                             <div class="order-timer ${timerClass}" data-created="${order.created_at_full}">
                                 <i class="bi bi-stopwatch"></i>
                                 <span class="timer-value">${wait.minutes}:${String(wait.seconds).padStart(2, '0')}</span>

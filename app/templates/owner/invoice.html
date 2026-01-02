@@ -92,12 +92,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
 
         .receipt-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         .receipt-logo i {
@@ -448,12 +455,31 @@
         function generatePDF() {
             const element = document.getElementById('receipt');
             const opt = {
-                margin: 0,
+                margin: [5, 0, 5, 0],
                 filename: 'Receipt-{{ order.order_number }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: [80, 200], orientation: 'portrait' }
+                image: {
+                    type: 'jpeg',
+                    quality: 1.0
+                },
+                html2canvas: {
+                    scale: 3,
+                    useCORS: true,
+                    allowTaint: true,
+                    letterRendering: true,
+                    logging: false,
+                    scrollY: 0,
+                    scrollX: 0
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: [80, 'auto'],
+                    orientation: 'portrait',
+                    compress: true
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
+
+            // Wait for images to load before generating PDF
             html2pdf().set(opt).from(element).save();
         }
     </script>

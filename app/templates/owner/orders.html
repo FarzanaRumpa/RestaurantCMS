@@ -195,6 +195,7 @@
                     {% if stats.pending > 0 %}<span class="badge">{{ stats.pending }}</span>{% endif %}
                 </a>
                 <a href="{{ url_for('owner.menu') }}" class="nav-item"><i class="bi bi-menu-button-wide"></i>Menu</a>
+                <a href="{{ url_for('owner.tables') }}" class="nav-item"><i class="bi bi-grid-3x3"></i>Tables & QR</a>
             </div>
             <div class="nav-section">
                 <div class="nav-section-title">Displays</div>
@@ -315,7 +316,7 @@
                             </div>
                         </td>
                         <td class="order-items">{{ order.items|length }} items</td>
-                        <td class="order-total">${{ "%.2f"|format(order.total_price) }}</td>
+                        <td class="order-total">{{ restaurant.currency_symbol or '$' }}{{ "%.2f"|format(order.total_price) }}</td>
                         <td>
                             <form action="{{ url_for('owner.update_order_status', order_id=order.id) }}" method="POST" style="display: inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -357,11 +358,11 @@
             const isLight = body.classList.contains('light-mode');
             icon.className = isLight ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
             label.textContent = isLight ? 'Dark' : 'Light';
-            localStorage.setItem('orders-theme', isLight ? 'light' : 'dark');
+            localStorage.setItem('owner-theme', isLight ? 'light' : 'dark');
         }
 
         (function() {
-            const savedTheme = localStorage.getItem('orders-theme');
+            const savedTheme = localStorage.getItem('owner-theme');
             if (savedTheme === 'light') {
                 document.body.classList.add('light-mode');
                 document.getElementById('themeIcon').className = 'bi bi-moon-fill';

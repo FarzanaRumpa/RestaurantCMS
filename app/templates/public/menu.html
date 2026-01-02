@@ -614,7 +614,7 @@
                                 {% if item.description %}
                                 <p class="menu-item-desc">{{ item.description }}</p>
                                 {% endif %}
-                                <div class="menu-item-price">${{ "%.2f"|format(item.price) }}</div>
+                                <div class="menu-item-price">{{ restaurant.currency_symbol or '$' }}{{ "%.2f"|format(item.price) }}</div>
                             </div>
                             <div class="qty-control">
                                 <button class="qty-btn" onclick="changeQty({{ item.id }}, -1)">−</button>

@@ -67,6 +67,20 @@ class Restaurant(db.Model):
     # Currency
     currency_symbol = db.Column(db.String(10), default='$')
 
+    # Operating Hours
+    opening_time = db.Column(db.String(5), default='09:00')
+    closing_time = db.Column(db.String(5), default='22:00')
+
+    # Ordering Settings
+    min_order_amount = db.Column(db.Float, default=0.0)
+    enable_takeaway = db.Column(db.Boolean, default=True)
+    enable_dine_in = db.Column(db.Boolean, default=True)
+    auto_accept_orders = db.Column(db.Boolean, default=False)
+
+    # Notification Settings
+    order_notification_email = db.Column(db.String(120))
+    order_notification_enabled = db.Column(db.Boolean, default=True)
+
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -94,8 +108,11 @@ class Table(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     table_number = db.Column(db.Integer, nullable=False)
+    table_name = db.Column(db.String(50))  # Optional custom name like "Patio 1", "Window Seat"
     access_token = db.Column(db.String(50), unique=True, default=lambda: str(uuid.uuid4())[:12])
     qr_code_path = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    capacity = db.Column(db.Integer, default=4)  # Number of seats
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -105,8 +122,11 @@ class Table(db.Model):
         return {
             'id': self.id,
             'table_number': self.table_number,
+            'table_name': self.table_name,
             'access_token': self.access_token,
-            'qr_code_url': f'/static/qrcodes/{self.qr_code_path}' if self.qr_code_path else None
+            'qr_code_url': f'/static/qrcodes/{self.qr_code_path}' if self.qr_code_path else None,
+            'is_active': self.is_active,
+            'capacity': self.capacity
         }
 
 
@@ -175,7 +195,11 @@ class Order(db.Model):
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
 
     def generate_order_number(self):
-        self.order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{self.id or uuid.uuid4().hex[:4].upper()}"
+        # Generate a short 4-digit order number for display
+        # Format: last 4 chars of hex ID for uniqueness within restaurant/day
+        import random
+        short_id = random.randint(1000, 9999)
+        self.order_number = f"#{short_id}"
 
     def calculate_total(self):
         self.total_price = sum(item.subtotal for item in self.items)
@@ -338,6 +362,33 @@ class ModerationLog(db.Model):
             'notes': self.notes,
             'created_at': self.created_at.isoformat()
         }
+
+
+class QRTemplateSettings(db.Model):
+    """Global QR template settings managed by admin"""
+    __tablename__ = 'qr_template_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    saas_name = db.Column(db.String(100), default='RestaurantCMS')
+    saas_logo_path = db.Column(db.String(255))
+    primary_color = db.Column(db.String(7), default='#6366f1')
+    secondary_color = db.Column(db.String(7), default='#1a1a2e')
+    scan_text = db.Column(db.String(100), default='Scan to View Menu')
+    powered_by_text = db.Column(db.String(100), default='Powered by')
+    show_powered_by = db.Column(db.Boolean, default=True)
+    template_style = db.Column(db.String(20), default='modern')  # modern, minimal, classic
+    qr_size = db.Column(db.Integer, default=200)  # QR code size in pixels
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create default settings"""
+        settings = cls.query.first()
+        if not settings:
+            settings = cls()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
 
 
 # Import public models
