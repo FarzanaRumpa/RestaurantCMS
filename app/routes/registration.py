@@ -24,12 +24,22 @@ def apply_for_registration():
     - restaurant_address: str
     - restaurant_phone: str
     - restaurant_type: str (cafe, restaurant, bar, fast-food, etc.)
+    - pricing_plan_id: int (selected pricing plan)
+    - country_code: str (ISO country code for tier-based pricing)
     """
     data = request.get_json()
 
     validation = validate_required_fields(data, ['applicant_name', 'applicant_email', 'restaurant_name'])
     if validation:
         return validation
+
+    # Validate pricing plan if provided
+    pricing_plan_id = data.get('pricing_plan_id')
+    if pricing_plan_id:
+        from app.models.website_content_models import PricingPlan
+        plan = PricingPlan.query.get(pricing_plan_id)
+        if not plan or not plan.is_active:
+            return error_response('Invalid or inactive pricing plan selected', 400)
 
     # Check if email already has a pending request
     existing = RegistrationRequest.query.filter_by(
@@ -62,12 +72,19 @@ def apply_for_registration():
         priority='normal'
     )
 
+    # Store pricing plan selection and country for later
+    if pricing_plan_id:
+        reg_request.notes = f"Selected Plan ID: {pricing_plan_id}"
+        if data.get('country_code'):
+            reg_request.notes += f", Country: {data.get('country_code')}"
+
     db.session.add(reg_request)
     db.session.commit()
 
     return json_response({
         'request_id': reg_request.request_id,
         'status': reg_request.status,
+        'pricing_plan_id': pricing_plan_id,
         'message': 'Your registration request has been submitted successfully. You will be notified once it has been reviewed.'
     }, 'Registration submitted', 201)
 

@@ -88,11 +88,12 @@
             margin: 0 auto 12px;
             border-radius: 12px;
             overflow: hidden;
-            background: linear-gradient(135deg, #6366f1, #a855f7);
+            background: white;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
+            border: 1px solid #f0f0f0;
         }
 
         .receipt-logo img {
@@ -109,7 +110,7 @@
 
         .receipt-logo i {
             font-size: 24px;
-            color: white;
+            color: #6366f1;
         }
 
         .receipt-restaurant {
@@ -452,14 +453,31 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        function generatePDF() {
+        async function generatePDF() {
             const element = document.getElementById('receipt');
+
+            // Ensure all images are loaded before generating PDF
+            const images = element.querySelectorAll('img');
+            const imagePromises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Resolve even on error to continue
+                });
+            });
+
+            try {
+                await Promise.all(imagePromises);
+            } catch (e) {
+                console.log('Image loading warning:', e);
+            }
+
             const opt = {
                 margin: [5, 0, 5, 0],
                 filename: 'Receipt-{{ order.order_number }}.pdf',
                 image: {
                     type: 'jpeg',
-                    quality: 1.0
+                    quality: 0.98
                 },
                 html2canvas: {
                     scale: 3,
@@ -468,7 +486,8 @@
                     letterRendering: true,
                     logging: false,
                     scrollY: 0,
-                    scrollX: 0
+                    scrollX: 0,
+                    backgroundColor: '#ffffff'
                 },
                 jsPDF: {
                     unit: 'mm',
@@ -479,8 +498,13 @@
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            // Wait for images to load before generating PDF
-            html2pdf().set(opt).from(element).save();
+            // Generate and save PDF
+            try {
+                await html2pdf().set(opt).from(element).save();
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                alert('Error generating PDF. Please try again.');
+            }
         }
     </script>
 </body>

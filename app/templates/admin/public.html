@@ -1,69 +1,148 @@
 {% extends "admin/base.html" %}
-{% block title %}Public{% endblock %}
+{% block title %}Website Content Management{% endblock %}
 {% block content %}
 <div class="mb-4">
-    <h2 class="mb-1"><i class="bi bi-globe2 me-2"></i>Public Section</h2>
-    <p class="text-muted">Manage your public-facing website content</p>
+    <h2 class="mb-1"><i class="bi bi-globe2 me-2"></i>Website Content Management</h2>
+    <p class="text-muted">Manage all aspects of your public-facing SaaS homepage</p>
 </div>
 
 <!-- Website Content Management Cards -->
 <div class="row g-4">
     <!-- Hero Sections Card -->
-    <div class="col-md-4">
+    <div class="col-md-6 col-lg-4">
         <a href="{{ url_for('admin.hero_sections') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm h-100" style="transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)'">
-                <div class="card-body text-center py-5">
-                    <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+            <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center py-4">
+                    <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
                         <i class="bi bi-image fs-1 text-primary"></i>
                     </div>
                     <h5 class="text-dark mb-2">Hero Sections</h5>
-                    <p class="text-muted mb-0 small">Manage homepage banners, titles, subtitles, and call-to-action buttons</p>
+                    <p class="text-muted mb-0 small">Homepage banners, titles, and CTAs</p>
                 </div>
-                <div class="card-footer bg-primary text-white text-center py-3 border-0">
-                    <i class="bi bi-arrow-right me-2"></i>Manage Hero Sections
+                <div class="card-footer bg-primary text-white text-center py-2 border-0">
+                    <small><i class="bi bi-arrow-right me-1"></i>Manage</small>
                 </div>
             </div>
         </a>
     </div>
 
     <!-- Features Card -->
-    <div class="col-md-4">
+    <div class="col-md-6 col-lg-4">
         <a href="{{ url_for('admin.features') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm h-100" style="transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)'">
-                <div class="card-body text-center py-5">
-                    <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+            <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center py-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
                         <i class="bi bi-stars fs-1 text-success"></i>
                     </div>
                     <h5 class="text-dark mb-2">Features</h5>
-                    <p class="text-muted mb-0 small">Manage platform features and highlights shown on public pages</p>
+                    <p class="text-muted mb-0 small">Platform features and highlights</p>
                 </div>
-                <div class="card-footer bg-success text-white text-center py-3 border-0">
-                    <i class="bi bi-arrow-right me-2"></i>Manage Features
+                <div class="card-footer bg-success text-white text-center py-2 border-0">
+                    <small><i class="bi bi-arrow-right me-1"></i>Manage</small>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Pricing Plans Card -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('admin.pricing_plans') }}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center py-4">
+                    <div class="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                        <i class="bi bi-tag fs-1 text-info"></i>
+                    </div>
+                    <h5 class="text-dark mb-2">Pricing Plans</h5>
+                    <p class="text-muted mb-0 small">Manage packages and pricing tiers</p>
+                </div>
+                <div class="card-footer bg-info text-white text-center py-2 border-0">
+                    <small><i class="bi bi-arrow-right me-1"></i>Manage</small>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Testimonials Card -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('admin.testimonials') }}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center py-4">
+                    <div class="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                        <i class="bi bi-chat-quote fs-1 text-danger"></i>
+                    </div>
+                    <h5 class="text-dark mb-2">Testimonials</h5>
+                    <p class="text-muted mb-0 small">Customer reviews and feedback</p>
+                </div>
+                <div class="card-footer bg-danger text-white text-center py-2 border-0">
+                    <small><i class="bi bi-arrow-right me-1"></i>Manage</small>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- How It Works Card -->
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('admin.how_it_works') }}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center py-4">
+                    <div class="bg-secondary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
+                        <i class="bi bi-list-ol fs-1 text-secondary"></i>
+                    </div>
+                    <h5 class="text-dark mb-2">How It Works</h5>
+                    <p class="text-muted mb-0 small">Step-by-step guide sections</p>
+                </div>
+                <div class="card-footer bg-secondary text-white text-center py-2 border-0">
+                    <small><i class="bi bi-arrow-right me-1"></i>Manage</small>
                 </div>
             </div>
         </a>
     </div>
 
     <!-- Contact Messages Card -->
-    <div class="col-md-4">
+    <div class="col-md-6 col-lg-4">
         <a href="{{ url_for('admin.contact_messages') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm h-100" style="transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0.125rem 0.25rem rgba(0,0,0,0.075)'">
-                <div class="card-body text-center py-5">
-                    <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+            <div class="card border-0 shadow-sm h-100 hover-card">
+                <div class="card-body text-center py-4">
+                    <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
                         <i class="bi bi-envelope fs-1 text-warning"></i>
                     </div>
                     <h5 class="text-dark mb-2">Contact Messages</h5>
-                    <p class="text-muted mb-0 small">View and manage messages received from the contact form</p>
+                    <p class="text-muted mb-0 small">View contact form submissions</p>
                     {% if new_messages is defined and new_messages > 0 %}
-                    <span class="badge bg-danger mt-3">{{ new_messages }} New</span>
+                    <span class="badge bg-danger mt-2">{{ new_messages }} New</span>
                     {% endif %}
                 </div>
-                <div class="card-footer bg-warning text-dark text-center py-3 border-0">
-                    <i class="bi bi-arrow-right me-2"></i>View Messages
+                <div class="card-footer bg-warning text-dark text-center py-2 border-0">
+                    <small><i class="bi bi-arrow-right me-1"></i>View Messages</small>
                 </div>
             </div>
         </a>
     </div>
 </div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Quick Actions</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="/" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>View Live Homepage</a>
+                    <a href="{{ url_for('admin.hero_sections') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-plus me-1"></i>Add Hero Section</a>
+                    <a href="{{ url_for('admin.pricing_plans') }}" class="btn btn-sm btn-outline-info"><i class="bi bi-plus me-1"></i>Add Pricing Plan</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hover-card {
+    transition: all 0.3s ease;
+}
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+</style>
 
 {% endblock %}

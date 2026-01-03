@@ -13,7 +13,97 @@ owner_bp = Blueprint('owner', __name__)
 
 
 def get_current_owner():
-    """Get the current logged in restaurant owner"""
+    """Get the current logged in restaurant owner or admin viewing as owner"""
+    # Check if admin is accessing with admin_access flag
+    if request.args.get('admin_access') == 'true' and session.get('admin_logged_in'):
+        admin_user = User.query.get(session.get('admin_user_id'))
+        if admin_user and admin_user.role in ['admin', 'superadmin', 'system_admin']:
+            # Get restaurant from URL parameter
+            restaurant_id = request.args.get('restaurant_id') or request.view_args.get('restaurant_id')
+            if restaurant_id:
+                restaurant = Restaurant.query.get(restaurant_id)
+                if restaurant and restaurant.owner:
+                    # Return the restaurant owner for this session
+                    return restaurant.owner
+
+    # Check for admin viewing kitchen screen
+    if request.args.get('admin_restaurant_id') and session.get('admin_logged_in'):
+        admin_user = User.query.get(session.get('admin_user_id'))
+        if admin_user and admin_user.role in ['admin', 'superadmin', 'system_admin']:
+            restaurant_id = request.args.get('admin_restaurant_id')
+            restaurant = Restaurant.query.get(restaurant_id)
+            if restaurant and restaurant.owner:
+                return restaurant.owner
+
+    # Normal owner login check
+    if session.get('owner_logged_in') and session.get('owner_user_id'):
+        user = User.query.get(session.get('owner_user_id'))
+        if user and user.role == 'restaurant_owner' and user.is_active:
+            return user
+    return None
+
+
+def is_admin_accessing():
+    """Check if current request is from admin accessing owner features"""
+    return (request.args.get('admin_access') == 'true' or request.args.get('admin_restaurant_id')) and session.get('admin_logged_in')
+
+
+def feature_required(feature_name):
+    """Decorator to check if restaurant has access to a specific feature based on pricing plan"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user = get_current_owner()
+
+            if not user or not user.restaurant:
+                flash('Please login to access your restaurant', 'info')
+                return redirect(url_for('owner.login'))
+
+            # Check if feature is enabled in pricing plan
+            if not user.restaurant.has_feature(feature_name):
+                # If admin is accessing, redirect back with message
+                if is_admin_accessing():
+                    flash(f'This feature ({feature_name.replace("_", " ").title()}) is not enabled in this restaurant\'s plan. Please upgrade their plan first.', 'warning')
+                    return redirect(url_for('admin.restaurant_detail', restaurant_id=user.restaurant.id))
+
+                # For owners, show upgrade page
+                return render_template('owner/feature_locked.html',
+                    user=user,
+                    restaurant=user.restaurant,
+                    feature_name=feature_name,
+                    feature_display_name=feature_name.replace('_', ' ').title(),
+                    current_plan=user.restaurant.pricing_plan
+                )
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def get_current_owner():
+    """Get the current logged in restaurant owner or admin viewing as owner"""
+    # Check if admin is accessing with admin_access flag
+    if request.args.get('admin_access') == 'true' and session.get('admin_logged_in'):
+        admin_user = User.query.get(session.get('admin_user_id'))
+        if admin_user and admin_user.role in ['admin', 'superadmin', 'system_admin']:
+            # Get restaurant from URL parameter
+            restaurant_id = request.args.get('restaurant_id') or request.view_args.get('restaurant_id')
+            if restaurant_id:
+                restaurant = Restaurant.query.get(restaurant_id)
+                if restaurant and restaurant.owner:
+                    # Return the restaurant owner for this session
+                    return restaurant.owner
+
+    # Check for admin viewing kitchen screen
+    if request.args.get('admin_restaurant_id') and session.get('admin_logged_in'):
+        admin_user = User.query.get(session.get('admin_user_id'))
+        if admin_user and admin_user.role in ['admin', 'superadmin', 'system_admin']:
+            restaurant_id = request.args.get('admin_restaurant_id')
+            restaurant = Restaurant.query.get(restaurant_id)
+            if restaurant and restaurant.owner:
+                return restaurant.owner
+
+    # Normal owner login check
     if session.get('owner_logged_in') and session.get('owner_user_id'):
         user = User.query.get(session.get('owner_user_id'))
         if user and user.role == 'restaurant_owner' and user.is_active:
@@ -22,7 +112,7 @@ def get_current_owner():
 
 
 def owner_required(f):
-    """Decorator for owner-only routes"""
+    """Decorator for owner-only routes - allows admin access"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Check if this is an AJAX/API request
@@ -31,15 +121,20 @@ def owner_required(f):
                   request.accept_mimetypes.best == 'application/json' or \
                   '/api/' in request.path
 
-        if not session.get('owner_logged_in'):
+        # Check for admin access
+        is_admin_access = (request.args.get('admin_access') == 'true' or request.args.get('admin_restaurant_id')) and session.get('admin_logged_in')
+
+        if not session.get('owner_logged_in') and not is_admin_access:
             if is_ajax:
                 return jsonify({'success': False, 'message': 'Please login to access your restaurant'}), 401
             flash('Please login to access your restaurant', 'info')
             return redirect(url_for('owner.login'))
+
         user = get_current_owner()
         if not user:
-            session.pop('owner_logged_in', None)
-            session.pop('owner_user_id', None)
+            if not is_admin_access:
+                session.pop('owner_logged_in', None)
+                session.pop('owner_user_id', None)
             if is_ajax:
                 return jsonify({'success': False, 'message': 'Session expired. Please login again'}), 401
             flash('Session expired. Please login again', 'info')
@@ -76,7 +171,7 @@ def login():
 
         if not username or not password:
             flash('Please enter both username and password', 'error')
-            return render_template('owner/login.html')
+            return render_template('admin/owner_login_new.html')
 
         # Only allow restaurant_owner role
         user = User.query.filter_by(username=username, role='restaurant_owner').first()
@@ -84,7 +179,7 @@ def login():
         if user and user.check_password(password):
             if not user.is_active:
                 flash('Your account has been disabled. Please contact administrator.', 'error')
-                return render_template('owner/login.html')
+                return render_template('admin/owner_login_new.html')
 
             # Clear any existing session and set owner session
             session.clear()
@@ -101,7 +196,7 @@ def login():
 
         flash('Invalid username or password', 'error')
 
-    return render_template('owner/login.html')
+    return render_template('admin/owner_login_new.html')
 
 
 @owner_bp.route('/owner/logout')
@@ -115,40 +210,35 @@ def logout():
 
 @owner_bp.route('/owner/signup', methods=['POST'])
 def signup():
-    """Restaurant owner signup"""
+    """Restaurant owner signup with package selection"""
     try:
         # Get form data
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip()
         phone = request.form.get('phone', '').strip()
         password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
         restaurant_name = request.form.get('restaurant_name', '').strip()
-        address = request.form.get('address', '').strip()
-        description = request.form.get('description', '').strip()
+        owner_name = request.form.get('owner_name', '').strip()
+        pricing_plan_id = request.form.get('pricing_plan_id', '')
 
         # Validation
-        if not all([username, email, phone, password, restaurant_name]):
-            flash('Please fill in all required fields', 'error')
-            return redirect(url_for('owner.login') + '?signup=1')
-
-        if password != confirm_password:
-            flash('Passwords do not match', 'error')
-            return redirect(url_for('owner.login') + '?signup=1')
+        if not all([username, email, password, restaurant_name, owner_name, pricing_plan_id]):
+            flash('Please fill in all required fields and select a pricing plan', 'error')
+            return redirect(url_for('owner.login'))
 
         if len(password) < 6:
             flash('Password must be at least 6 characters long', 'error')
-            return redirect(url_for('owner.login') + '?signup=1')
+            return redirect(url_for('owner.login'))
 
         # Check if username exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists. Please choose another one.', 'error')
-            return redirect(url_for('owner.login') + '?signup=1')
+            return redirect(url_for('owner.login'))
 
         # Check if email exists
         if User.query.filter_by(email=email).first():
             flash('Email already registered. Please use another email.', 'error')
-            return redirect(url_for('owner.login') + '?signup=1')
+            return redirect(url_for('owner.login'))
 
         # Create new user
         new_user = User(
@@ -156,7 +246,7 @@ def signup():
             email=email,
             phone=phone,
             role='restaurant_owner',
-            is_active=True  # Auto-activate for now, you can set to False for admin approval
+            is_active=True
         )
         new_user.set_password(password)
         db.session.add(new_user)
@@ -165,8 +255,6 @@ def signup():
         # Create restaurant
         new_restaurant = Restaurant(
             name=restaurant_name,
-            address=address,
-            description=description,
             phone=phone,
             owner_id=new_user.id,
             is_active=True
@@ -174,8 +262,18 @@ def signup():
         db.session.add(new_restaurant)
         db.session.commit()
 
-        flash('Account created successfully! You can now login.', 'success')
-        return redirect(url_for('owner.login'))
+        # Auto-login the user
+        session.clear()
+        session['owner_logged_in'] = True
+        session['owner_user_id'] = new_user.id
+
+        flash(f'Welcome to RestaurantPro, {owner_name}! Your account has been created successfully.', 'success')
+
+        # Redirect to restaurant dashboard
+        if new_restaurant:
+            return redirect(url_for('owner.dashboard', restaurant_id=new_restaurant.id))
+        else:
+            return redirect(url_for('owner.no_restaurant'))
 
     except Exception as e:
         db.session.rollback()
@@ -905,6 +1003,8 @@ def import_menu_csv():
 def profile():
     """View and edit restaurant profile"""
     user = get_current_owner()
+    from app.services.geo_service import get_all_countries_for_selector
+    from app.models.website_content_models import PricingPlan
 
     if request.method == 'POST':
         if not user.restaurant:
@@ -915,17 +1015,62 @@ def profile():
         user.restaurant.name = request.form.get('name', user.restaurant.name)
         user.restaurant.description = request.form.get('description', user.restaurant.description)
         user.restaurant.address = request.form.get('address', user.restaurant.address)
+        user.restaurant.city = request.form.get('city', user.restaurant.city)
+        user.restaurant.postal_code = request.form.get('postal_code', user.restaurant.postal_code)
+        user.restaurant.category = request.form.get('category', user.restaurant.category)
         user.restaurant.phone = request.form.get('phone', user.restaurant.phone)
         user.restaurant.email = request.form.get('email', user.restaurant.email)
         user.restaurant.website = request.form.get('website', user.restaurant.website)
+
+        # Update country (also updates country_code for pricing tier)
+        new_country = request.form.get('country', '')
+        if new_country:
+            user.restaurant.country = new_country
+            # Update country_code based on country selection
+            country_code = request.form.get('country_code', '')
+            if country_code:
+                user.restaurant.country_code = country_code
 
         db.session.commit()
         flash('Restaurant profile updated successfully!', 'success')
         return redirect(url_for('owner.profile'))
 
+    # Get countries list for dropdown
+    countries = get_all_countries_for_selector()
+
+    # Restaurant categories
+    categories = [
+        'Fast Food', 'Fine Dining', 'Casual Dining', 'Cafe', 'Bakery',
+        'Bar & Grill', 'Pizzeria', 'Seafood', 'Steakhouse', 'Asian',
+        'Indian', 'Mexican', 'Italian', 'Japanese', 'Chinese',
+        'Thai', 'Vietnamese', 'Mediterranean', 'Middle Eastern', 'American',
+        'Vegetarian', 'Vegan', 'Food Truck', 'Buffet', 'Other'
+    ]
+
+    # Currency options
+    currencies = [
+        {'symbol': '$', 'name': 'US Dollar (USD)'},
+        {'symbol': '€', 'name': 'Euro (EUR)'},
+        {'symbol': '£', 'name': 'British Pound (GBP)'},
+        {'symbol': '¥', 'name': 'Japanese Yen (JPY)'},
+        {'symbol': '₹', 'name': 'Indian Rupee (INR)'},
+        {'symbol': '৳', 'name': 'Bangladeshi Taka (BDT)'},
+        {'symbol': 'A$', 'name': 'Australian Dollar (AUD)'},
+        {'symbol': 'C$', 'name': 'Canadian Dollar (CAD)'},
+        {'symbol': 'RM', 'name': 'Malaysian Ringgit (MYR)'},
+        {'symbol': 'S$', 'name': 'Singapore Dollar (SGD)'},
+        {'symbol': '₱', 'name': 'Philippine Peso (PHP)'},
+        {'symbol': '฿', 'name': 'Thai Baht (THB)'},
+        {'symbol': 'R', 'name': 'South African Rand (ZAR)'},
+        {'symbol': 'AED', 'name': 'UAE Dirham (AED)'},
+        {'symbol': 'SAR', 'name': 'Saudi Riyal (SAR)'},
+    ]
+
     return render_template('owner/profile.html',
         user=user,
-        restaurant=user.restaurant
+        restaurant=user.restaurant,
+        countries=countries,
+        categories=categories
     )
 
 
@@ -975,6 +1120,242 @@ def settings():
         user=user,
         restaurant=user.restaurant
     )
+
+
+# ============= PLAN MANAGEMENT =============
+
+@owner_bp.route('/upgrade-plan')
+@owner_required
+def upgrade_plan():
+    """View available plans and request upgrade/downgrade"""
+    user = get_current_owner()
+    
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+    
+    # Get all active pricing plans
+    from app.models.website_content_models import PricingPlan
+    from app.services.geo_service import get_country_info
+
+    plans = PricingPlan.query.filter_by(is_active=True).order_by(PricingPlan.price).all()
+    current_plan = user.restaurant.pricing_plan
+    
+    # Determine user's country: prefer restaurant's country_code, then IP detection
+    if user.restaurant.country_code:
+        user_country = user.restaurant.country_code
+        tier = PricingPlan.get_tier_for_country(user_country)
+        country_name = PricingPlan.get_country_name(user_country)
+
+        tier_info = {
+            'tier1': {'name': 'Premium', 'discount': 0},
+            'tier2': {'name': 'Standard', 'discount': 20},
+            'tier3': {'name': 'Economy', 'discount': 40},
+            'tier4': {'name': 'Budget', 'discount': 60}
+        }
+
+        country_info = {
+            'country_code': user_country,
+            'country_name': country_name,
+            'tier': tier,
+            'tier_name': tier_info.get(tier, {}).get('name', 'Premium'),
+            'discount_percent': tier_info.get(tier, {}).get('discount', 0)
+        }
+    else:
+        # Fall back to IP-based detection
+        country_info = get_country_info()
+        user_country = country_info['country_code']
+        tier = country_info['tier']
+
+    return render_template('owner/upgrade_plan.html',
+        user=user,
+        restaurant=user.restaurant,
+        plans=plans,
+        current_plan=current_plan,
+        country_info=country_info,
+        user_country=user_country,
+        current_tier=tier
+    )
+
+
+@owner_bp.route('/change-plan/<int:plan_id>', methods=['POST'])
+@owner_required
+def change_plan(plan_id):
+    """Request to change to a different plan"""
+    user = get_current_owner()
+    
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+    
+    from app.models.website_content_models import PricingPlan
+    new_plan = PricingPlan.query.get_or_404(plan_id)
+    current_plan = user.restaurant.pricing_plan
+    
+    # If plan has a price > 0, redirect to checkout
+    if float(new_plan.price) > 0:
+        return redirect(url_for('owner.checkout', plan_id=plan_id))
+
+    # Free plan - process immediately
+    user.restaurant.pricing_plan_id = new_plan.id
+    
+    from datetime import datetime, timedelta
+    user.restaurant.subscription_start_date = datetime.utcnow()
+    user.restaurant.subscription_end_date = datetime.utcnow() + timedelta(days=30 if new_plan.price_period == 'monthly' else 365)
+    user.restaurant.is_trial = False
+    
+    db.session.commit()
+    
+    if current_plan:
+        if float(new_plan.price) > float(current_plan.price):
+            flash(f'Successfully upgraded to {new_plan.name} plan!', 'success')
+        elif float(new_plan.price) < float(current_plan.price):
+            flash(f'Successfully downgraded to {new_plan.name} plan. Some features may no longer be available.', 'info')
+        else:
+            flash(f'Successfully changed to {new_plan.name} plan!', 'success')
+    else:
+        flash(f'Successfully subscribed to {new_plan.name} plan!', 'success')
+    
+    return redirect(url_for('owner.settings'))
+
+
+@owner_bp.route('/checkout/<int:plan_id>')
+@owner_required
+def checkout(plan_id):
+    """Checkout page for paid plans"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+
+    from app.models.website_content_models import PricingPlan, PaymentGateway
+    from app.services.geo_service import get_country_info
+
+    plan = PricingPlan.query.get_or_404(plan_id)
+    country_info = get_country_info()
+
+    # Get the price for user's country
+    user_country = user.restaurant.country if hasattr(user.restaurant, 'country') and user.restaurant.country else country_info['country_code']
+    plan_price = plan.get_price_for_country(user_country)
+
+    # Get active payment gateways
+    gateways = PaymentGateway.query.filter_by(is_active=True).order_by(PaymentGateway.display_order).all()
+
+    return render_template('owner/checkout.html',
+                         user=user,
+                         restaurant=user.restaurant,
+                         plan=plan,
+                         plan_price=plan_price,
+                         country_info=country_info,
+                         user_country=user_country,
+                         gateways=gateways)
+
+
+@owner_bp.route('/process-payment/<int:plan_id>', methods=['POST'])
+@owner_required
+def process_payment(plan_id):
+    """Process payment for plan upgrade"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+
+    from app.models.website_content_models import PricingPlan, PaymentGateway, PaymentTransaction
+    from app.services.geo_service import get_country_info
+    from datetime import datetime, timedelta
+    import uuid
+    import json
+
+    plan = PricingPlan.query.get_or_404(plan_id)
+    gateway_name = request.form.get('gateway')
+
+    # Get country-based price
+    country_info = get_country_info()
+    user_country = user.restaurant.country if hasattr(user.restaurant, 'country') and user.restaurant.country else country_info['country_code']
+    plan_price = plan.get_price_for_country(user_country)
+
+    gateway = PaymentGateway.query.filter_by(name=gateway_name, is_active=True).first()
+    if not gateway:
+        flash('Payment gateway not available', 'error')
+        return redirect(url_for('owner.checkout', plan_id=plan_id))
+
+    # Create transaction record with tier-based price
+    transaction = PaymentTransaction(
+        transaction_id=str(uuid.uuid4()),
+        gateway_name=gateway_name,
+        user_id=user.id,
+        restaurant_id=user.restaurant.id,
+        amount=plan_price,
+        currency=plan.currency,
+        status='pending',
+        pricing_plan_id=plan.id,
+        subscription_months=1 if plan.price_period == 'monthly' else 12
+    )
+    db.session.add(transaction)
+    db.session.commit()
+
+    # Check if this is first purchase (restaurant profile incomplete)
+    is_first_purchase = not user.restaurant.country or not user.restaurant.address
+
+    # For demo/sandbox mode, simulate successful payment
+    if gateway.is_sandbox:
+        # Simulate successful payment
+        transaction.status = 'completed'
+        transaction.completed_at = datetime.utcnow()
+        transaction.gateway_response = json.dumps({'sandbox': True, 'message': 'Simulated payment'})
+
+        # Update restaurant plan
+        user.restaurant.pricing_plan_id = plan.id
+        user.restaurant.subscription_start_date = datetime.utcnow()
+        user.restaurant.subscription_end_date = datetime.utcnow() + timedelta(days=30 if plan.price_period == 'monthly' else 365)
+        user.restaurant.is_trial = False
+
+        db.session.commit()
+
+        flash(f'Payment successful! You are now on the {plan.name} plan.', 'success')
+
+        # Redirect to profile page for first-time users to complete details
+        if is_first_purchase:
+            flash('Please complete your restaurant profile to get started.', 'info')
+            return redirect(url_for('owner.profile'))
+        return redirect(url_for('owner.settings'))
+
+    # For live mode, redirect to actual payment gateway
+    credentials = gateway.get_active_credentials()
+
+    if gateway_name == 'stripe':
+        # Stripe checkout session would be created here
+        # For now, simulate success
+        flash('Stripe integration coming soon. Payment simulated.', 'info')
+        transaction.status = 'completed'
+        transaction.completed_at = datetime.utcnow()
+        user.restaurant.pricing_plan_id = plan.id
+        user.restaurant.subscription_start_date = datetime.utcnow()
+        user.restaurant.subscription_end_date = datetime.utcnow() + timedelta(days=30 if plan.price_period == 'monthly' else 365)
+        db.session.commit()
+        if is_first_purchase:
+            flash('Please complete your restaurant profile to get started.', 'info')
+            return redirect(url_for('owner.profile'))
+        return redirect(url_for('owner.settings'))
+
+    elif gateway_name == 'paypal':
+        # PayPal order would be created here
+        flash('PayPal integration coming soon. Payment simulated.', 'info')
+        transaction.status = 'completed'
+        transaction.completed_at = datetime.utcnow()
+        user.restaurant.pricing_plan_id = plan.id
+        user.restaurant.subscription_start_date = datetime.utcnow()
+        user.restaurant.subscription_end_date = datetime.utcnow() + timedelta(days=30 if plan.price_period == 'monthly' else 365)
+        db.session.commit()
+        if is_first_purchase:
+            flash('Please complete your restaurant profile to get started.', 'info')
+            return redirect(url_for('owner.profile'))
+        return redirect(url_for('owner.settings'))
+
+    flash('Unknown payment gateway', 'error')
+    return redirect(url_for('owner.checkout', plan_id=plan_id))
 
 
 # ============= TABLE MANAGEMENT =============
@@ -1246,6 +1627,7 @@ def change_password():
 
 @owner_bp.route('/kitchen')
 @owner_required
+@feature_required('kitchen_display')
 def kitchen_screen():
     """Kitchen dashboard for managing all orders"""
     user = get_current_owner()
@@ -1425,6 +1807,18 @@ def customer_screen(restaurant_id):
 
     if not restaurant.is_active:
         return "Restaurant not available", 404
+
+    # Check if customer display feature is enabled
+    if not restaurant.has_feature('customer_display'):
+        # Check if admin is accessing
+        if session.get('admin_logged_in'):
+            flash('Customer Display feature is not enabled for this restaurant. Please upgrade their plan.', 'warning')
+            return redirect(url_for('admin.restaurant_detail', restaurant_id=restaurant_id))
+        return render_template('owner/feature_locked_public.html',
+            restaurant=restaurant,
+            feature_name='Customer Display',
+            message='This feature is not available in the current plan.'
+        )
 
     # Get orders in progress (pending, preparing, ready)
     orders = Order.query.filter(

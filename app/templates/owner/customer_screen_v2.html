@@ -96,7 +96,8 @@
             background: var(--bg-dark);
             color: var(--text-primary);
             min-height: 100vh;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             user-select: none;
         }
 
@@ -232,7 +233,7 @@
             display: flex;
             padding: 40px;
             gap: 40px;
-            overflow: hidden;
+            overflow: visible;
         }
 
         /* ===== ORDER PANELS ===== */
@@ -243,7 +244,7 @@
             background: var(--bg-card);
             border-radius: 24px;
             border: 1px solid var(--border);
-            overflow: hidden;
+            overflow: visible;
             transition: all 0.3s ease;
         }
 
@@ -319,22 +320,74 @@
         .preparing .panel-count { color: var(--status-preparing); }
         .ready .panel-count { color: var(--status-ready); }
 
-        /* Order Grid */
+        /* Order Grid - FULLY ADAPTIVE - No Fixed Sizes */
         .orders-grid {
             flex: 1;
-            padding: 24px;
+            padding: 20px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+            gap: 12px;
             align-content: start;
-            overflow-y: auto;
+            overflow: visible;
         }
 
-        /* Order Ticket */
+        /* Adaptive column count based on order quantity */
+        .orders-grid:has(.order-ticket:nth-child(1):nth-last-child(1)) {
+            grid-template-columns: 1fr; /* 1 order = 1 column (full width) */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(2):nth-last-child(1)),
+        .orders-grid:has(.order-ticket:nth-child(3):nth-last-child(1)) {
+            grid-template-columns: repeat(2, 1fr); /* 2-3 orders = 2 columns */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(4):nth-last-child(1)),
+        .orders-grid:has(.order-ticket:nth-child(5):nth-last-child(1)),
+        .orders-grid:has(.order-ticket:nth-child(6):nth-last-child(1)) {
+            grid-template-columns: repeat(3, 1fr); /* 4-6 orders = 3 columns */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+7):nth-last-child(n+1)) {
+            grid-template-columns: repeat(4, 1fr); /* 7-11 orders = 4 columns */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+12):nth-last-child(n+1)) {
+            grid-template-columns: repeat(5, 1fr); /* 12-19 orders = 5 columns */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+20):nth-last-child(n+1)) {
+            grid-template-columns: repeat(6, 1fr); /* 20-29 orders = 6 columns */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+30):nth-last-child(n+1)) {
+            grid-template-columns: repeat(7, 1fr); /* 30-41 orders = 7 columns */
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+42):nth-last-child(n+1)) {
+            grid-template-columns: repeat(8, 1fr); /* 42+ orders = 8 columns */
+        }
+
+        /* Adaptive spacing based on order count */
+        .orders-grid:has(.order-ticket:nth-child(n+20)) {
+            gap: 10px;
+            padding: 16px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+30)) {
+            gap: 8px;
+            padding: 14px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+42)) {
+            gap: 6px;
+            padding: 12px;
+        }
+
+        /* Order Ticket - Adaptive scaling based on column count */
         .order-ticket {
             aspect-ratio: 1;
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px;
+            border-radius: 14px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -342,7 +395,30 @@
             border: 2px solid transparent;
             transition: all 0.3s ease;
             animation: ticketIn 0.4s ease backwards;
+            padding: 8px;
         }
+
+        /* Scale based on column density */
+        .orders-grid:has(.order-ticket:nth-child(n+12)) .order-ticket {
+            border-radius: 12px;
+            padding: 6px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+20)) .order-ticket {
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+30)) .order-ticket {
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+42)) .order-ticket {
+            border-radius: 7px;
+            padding: 3px;
+        }
+
 
         @keyframes ticketIn {
             from { opacity: 0; transform: scale(0.8); }
@@ -372,20 +448,70 @@
 
         .ticket-number {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 36px;
+            font-size: 32px;
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
+        }
+
+        /* Font scales proportionally with column density */
+        .orders-grid:has(.order-ticket:nth-child(n+7)) .ticket-number {
+            font-size: 28px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+12)) .ticket-number {
+            font-size: 24px;
+            letter-spacing: 0.5px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+20)) .ticket-number {
+            font-size: 20px;
+            letter-spacing: 0;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+30)) .ticket-number {
+            font-size: 18px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+42)) .ticket-number {
+            font-size: 16px;
         }
 
         .preparing .ticket-number { color: var(--status-preparing); }
         .ready .ticket-number { color: var(--status-ready); }
 
         .ticket-table {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-secondary);
-            margin-top: 6px;
+            margin-top: 4px;
             font-weight: 600;
         }
+
+        /* Table tag scales with density */
+        .orders-grid:has(.order-ticket:nth-child(n+7)) .ticket-table {
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+12)) .ticket-table {
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+20)) .ticket-table {
+            font-size: 9px;
+            margin-top: 2px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+30)) .ticket-table {
+            font-size: 8px;
+            margin-top: 1px;
+        }
+
+        .orders-grid:has(.order-ticket:nth-child(n+42)) .ticket-table {
+            font-size: 7px;
+            margin-top: 1px;
+        }
+
 
         /* Empty State */
         .empty-panel {

@@ -383,7 +383,7 @@
 
         /* Order Header - Compact */
         .order-header {
-            padding: 10px 14px;
+            padding: 8px 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -394,14 +394,14 @@
         .order-id {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
         }
 
         .order-number {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 900;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
         }
 
@@ -410,50 +410,50 @@
         .order-card.ready .order-number { color: var(--status-ready); }
 
         .order-type {
-            font-size: 10px;
+            font-size: 9px;
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             background: rgba(255,255,255,0.08);
-            padding: 3px 8px;
-            border-radius: 4px;
+            padding: 2px 6px;
+            border-radius: 3px;
         }
 
         .order-meta {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .table-tag {
             display: flex;
             align-items: center;
-            gap: 4px;
-            padding: 5px 10px;
+            gap: 3px;
+            padding: 3px 6px;
             background: rgba(255,255,255,0.08);
-            border-radius: 6px;
+            border-radius: 4px;
             font-weight: 700;
-            font-size: 13px;
+            font-size: 11px;
         }
 
         .table-tag i {
             color: var(--status-cooking);
-            font-size: 12px;
+            font-size: 10px;
         }
 
         /* Timer - Compact */
         .order-timer {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            border-radius: 4px;
+            gap: 3px;
+            padding: 3px 6px;
+            border-radius: 3px;
         }
 
-        .order-timer i { font-size: 12px; }
+        .order-timer i { font-size: 10px; }
 
         .order-timer.ok { background: rgba(46, 213, 115, 0.2); color: var(--timer-ok); }
         .order-timer.warning { background: rgba(255, 165, 2, 0.2); color: var(--timer-warning); }
@@ -462,17 +462,17 @@
 
         /* Order Items - Compact */
         .order-items {
-            padding: 8px 12px;
-            max-height: 140px;
-            overflow-y: auto;
+            padding: 6px 10px;
+            max-height: none;
+            overflow: visible;
         }
 
         .item-row {
             display: flex;
             align-items: center;
-            padding: 6px 0;
+            padding: 4px 0;
             border-bottom: 1px solid rgba(255,255,255,0.05);
-            gap: 10px;
+            gap: 8px;
         }
 
         .item-row:last-child {
@@ -480,15 +480,15 @@
         }
 
         .item-qty {
-            min-width: 32px;
-            height: 32px;
+            min-width: 26px;
+            height: 26px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, var(--status-cooking), #ff6b35);
-            border-radius: 6px;
+            border-radius: 5px;
             font-weight: 900;
-            font-size: 15px;
+            font-size: 13px;
             font-family: 'JetBrains Mono', monospace;
         }
 
@@ -501,15 +501,13 @@
         }
 
         .item-name {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.3;
         }
 
         .item-mods {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--status-cooking);
             font-style: italic;
         }
@@ -517,31 +515,31 @@
         .item-notes {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            font-size: 11px;
+            gap: 3px;
+            font-size: 10px;
             color: var(--status-new);
             background: var(--status-new-bg);
-            padding: 3px 6px;
-            border-radius: 4px;
+            padding: 2px 5px;
+            border-radius: 3px;
             margin-top: 2px;
         }
 
-        .item-notes i { font-size: 10px; }
+        .item-notes i { font-size: 9px; }
 
         /* Order Actions - Compact */
         .order-actions {
-            padding: 8px 12px;
+            padding: 6px 10px;
             display: flex;
-            gap: 8px;
+            gap: 6px;
             background: rgba(0,0,0,0.2);
         }
 
         .btn-action {
             flex: 1;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border: none;
-            border-radius: 8px;
-            font-size: 12px;
+            border-radius: 6px;
+            font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -550,7 +548,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 4px;
         }
 
         .btn-action:active {
@@ -558,7 +556,7 @@
         }
 
         .btn-action i {
-            font-size: 14px;
+            font-size: 12px;
         }
 
         .btn-start {
@@ -755,13 +753,13 @@
         /* ===== RESPONSIVE ===== */
         @media (min-width: 1600px) {
             .orders-scroll {
-                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
         @media (max-width: 1400px) {
             .orders-scroll {
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
             }
         }
@@ -769,6 +767,12 @@
         @media (max-width: 1200px) {
             .kds-stats { display: none; }
             .order-lane { min-width: 320px; }
+            .orders-scroll {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
             .orders-scroll {
                 grid-template-columns: 1fr;
             }
@@ -1028,12 +1032,57 @@
 
         // ===== CALCULATE WAIT TIME =====
         function getWaitTime(createdAt) {
-            const created = new Date(createdAt);
+            if (!createdAt) {
+                console.error('No createdAt provided');
+                return { minutes: 0, seconds: 0, total: 0 };
+            }
+
+            // Parse the ISO date string - handle both with and without timezone
+            let created;
+            try {
+                // If it's already a Date object
+                if (createdAt instanceof Date) {
+                    created = createdAt;
+                } else {
+                    // Parse ISO string - add 'Z' if missing to indicate UTC
+                    const dateStr = createdAt.includes('Z') || createdAt.includes('+')
+                        ? createdAt
+                        : createdAt + 'Z';
+                    created = new Date(dateStr);
+                }
+
+                // Validate the date
+                if (isNaN(created.getTime())) {
+                    console.error('Invalid date:', createdAt);
+                    return { minutes: 0, seconds: 0, total: 0 };
+                }
+            } catch (e) {
+                console.error('Date parsing error:', e, createdAt);
+                return { minutes: 0, seconds: 0, total: 0 };
+            }
+
             const now = new Date();
+
+            // Calculate difference in milliseconds
             const diffMs = now - created;
+
+            // Prevent negative times
+            if (diffMs < 0) {
+                console.warn('Future date detected:', createdAt);
+                return { minutes: 0, seconds: 0, total: 0 };
+            }
+
             const diffMins = Math.floor(diffMs / 60000);
             const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
             return { minutes: diffMins, seconds: diffSecs, total: diffMs };
+        }
+
+        function formatTimeAgo(totalMs) {
+            const mins = Math.floor(totalMs / 60000);
+            if (mins < 1) return 'Just now';
+            if (mins === 1) return '1 min ago';
+            return `${mins} min ago`;
         }
 
         function getTimerClass(totalMs) {
@@ -1112,7 +1161,7 @@
                         <div class="order-meta">
                             <div class="order-timer ${timerClass}" data-created="${order.created_at_full}">
                                 <i class="bi bi-stopwatch"></i>
-                                <span class="timer-value">${wait.minutes}:${String(wait.seconds).padStart(2, '0')}</span>
+                                <span class="timer-value">${formatTimeAgo(wait.total)}</span>
                             </div>
                         </div>
                     </div>
@@ -1131,7 +1180,7 @@
                 const wait = getWaitTime(created);
                 const timerValue = timer.querySelector('.timer-value');
                 if (timerValue) {
-                    timerValue.textContent = `${wait.minutes}:${String(wait.seconds).padStart(2, '0')}`;
+                    timerValue.textContent = formatTimeAgo(wait.total);
                 }
 
                 // Update timer class

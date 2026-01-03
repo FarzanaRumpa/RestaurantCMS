@@ -1,0 +1,248 @@
+{% extends "admin/base.html" %}
+{% block title %}Testimonials{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-chat-quote me-2"></i>Testimonials</h2>
+        <p class="text-muted">Manage customer reviews and feedback</p>
+    </div>
+    <div>
+        <a href="{{ url_for('public_admin.index') }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-lg me-1"></i>Add Testimonial
+        </button>
+    </div>
+</div>
+
+<!-- Testimonials List -->
+<div class="row g-4">
+    {% for testimonial in testimonials %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="text-warning">
+                        {% for i in range(testimonial.rating or 5) %}★{% endfor %}
+                    </div>
+                    {% if testimonial.is_featured %}
+                    <span class="badge bg-danger">FEATURED</span>
+                    {% endif %}
+                </div>
+
+                <p class="card-text fst-italic">"{{ testimonial.message[:120] }}{% if testimonial.message|length > 120 %}...{% endif %}"</p>
+
+                <div class="mt-3">
+                    <h6 class="mb-0">{{ testimonial.customer_name }}</h6>
+                    {% if testimonial.customer_role %}
+                    <small class="text-muted">{{ testimonial.customer_role }}</small>
+                    {% endif %}
+                    {% if testimonial.company_name %}
+                    <div><small class="text-muted">{{ testimonial.company_name }}</small></div>
+                    {% endif %}
+                </div>
+
+                <div class="mt-3">
+                    <span class="badge bg-{% if testimonial.is_active %}success{% else %}secondary{% endif %} me-1">
+                        {{ 'Active' if testimonial.is_active else 'Inactive' }}
+                    </span>
+                    <span class="badge bg-info">Order: {{ testimonial.display_order }}</span>
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <div class="btn-group w-100" role="group">
+                    <button class="btn btn-sm btn-outline-primary edit-btn"
+                            data-id="{{ testimonial.id }}"
+                            data-name="{{ testimonial.customer_name }}"
+                            data-role="{{ testimonial.customer_role or '' }}"
+                            data-company="{{ testimonial.company_name or '' }}"
+                            data-message="{{ testimonial.message }}"
+                            data-rating="{{ testimonial.rating or 5 }}"
+                            data-avatar="{{ testimonial.avatar_url or '' }}"
+                            data-featured="{{ testimonial.is_featured }}"
+                            data-active="{{ testimonial.is_active }}"
+                            data-order="{{ testimonial.display_order }}">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <form method="POST" action="{{ url_for('admin.toggle_testimonial', id=testimonial.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-toggle-{% if testimonial.is_active %}on{% else %}off{% endif %}"></i>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.delete_testimonial', id=testimonial.id) }}"
+                          onsubmit="return confirm('Delete this testimonial?')" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not testimonials %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No testimonials yet. Click "Add Testimonial" to create one.
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.create_testimonial') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Testimonial</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Customer Name *</label>
+                            <input type="text" class="form-control" name="customer_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role/Title</label>
+                            <input type="text" class="form-control" name="customer_role" placeholder="e.g., Restaurant Owner">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" class="form-control" name="company_name" placeholder="e.g., Joe's Bistro">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Rating</label>
+                            <select class="form-select" name="rating">
+                                <option value="5" selected>5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Display Order</label>
+                            <input type="number" class="form-control" name="display_order" value="0">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Testimonial Message *</label>
+                            <textarea class="form-control" name="message" rows="4" required placeholder="Share your experience..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Avatar URL (optional)</label>
+                            <input type="text" class="form-control" name="avatar_url" placeholder="https://...">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="createFeatured">
+                                <label class="form-check-label" for="createFeatured">Featured Testimonial</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" value="1" id="createActive" checked>
+                                <label class="form-check-label" for="createActive">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Testimonial</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" id="editForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Testimonial</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Customer Name *</label>
+                            <input type="text" class="form-control" name="customer_name" id="editName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role/Title</label>
+                            <input type="text" class="form-control" name="customer_role" id="editRole">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" class="form-control" name="company_name" id="editCompany">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Rating</label>
+                            <select class="form-select" name="rating" id="editRating">
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Display Order</label>
+                            <input type="number" class="form-control" name="display_order" id="editOrder">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Testimonial Message *</label>
+                            <textarea class="form-control" name="message" rows="4" id="editMessage" required></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Avatar URL (optional)</label>
+                            <input type="text" class="form-control" name="avatar_url" id="editAvatar">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="editFeatured">
+                                <label class="form-check-label" for="editFeatured">Featured Testimonial</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" value="1" id="editActive">
+                                <label class="form-check-label" for="editActive">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle edit button click
+document.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        document.getElementById('editForm').action = `/rock/testimonials/${id}/edit`;
+        document.getElementById('editName').value = this.dataset.name;
+        document.getElementById('editRole').value = this.dataset.role;
+        document.getElementById('editCompany').value = this.dataset.company;
+        document.getElementById('editMessage').value = this.dataset.message;
+        document.getElementById('editRating').value = this.dataset.rating;
+        document.getElementById('editAvatar').value = this.dataset.avatar;
+        document.getElementById('editOrder').value = this.dataset.order;
+        document.getElementById('editFeatured').checked = this.dataset.featured === 'True';
+        document.getElementById('editActive').checked = this.dataset.active === 'True';
+
+        new bootstrap.Modal(document.getElementById('editModal')).show();
+    });
+});
+</script>
+
+{% endblock %}
+

@@ -162,8 +162,20 @@
             {% if restaurant %}
             <div class="nav-section">
                 <div class="nav-section-title">Displays</div>
+                {% if restaurant.has_feature('kitchen_display') %}
                 <a href="{{ url_for('owner.kitchen_screen') }}" class="nav-item" target="_blank"><i class="bi bi-fire"></i>Kitchen Screen</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>Kitchen Screen 🔒</a>
+                {% endif %}
+                {% if restaurant.has_feature('customer_display') %}
                 <a href="/{{ restaurant.id }}/customer-screen" class="nav-item" target="_blank"><i class="bi bi-display"></i>Customer Display</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>Customer Display 🔒</a>
+                {% endif %}
+                <a href="/menu/{{ restaurant.public_id }}" class="nav-item" target="_blank">
+                    <i class="bi bi-phone"></i>
+                    Public Menu
+                </a>
             </div>
             {% endif %}
             <div class="nav-section">
@@ -207,6 +219,122 @@
                 </button>
             </div>
         </header>
+
+        <!-- Current Pricing Plan -->
+        {% if restaurant.pricing_plan %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="bi bi-star-fill"></i> Current Plan</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 24px;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <div style="display: inline-flex; align-items: center; gap: 12px; padding: 12px 24px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15)); border-radius: 50px; margin-bottom: 16px;">
+                            <i class="bi bi-award-fill" style="font-size: 24px; color: var(--accent-primary);"></i>
+                            <div>
+                                <div style="font-size: 24px; font-weight: 800; color: var(--accent-primary);">{{ restaurant.pricing_plan.name }}</div>
+                                <div style="font-size: 14px; color: var(--text-secondary); font-weight: 600;">${{ restaurant.pricing_plan.price }}/{{ restaurant.pricing_plan.price_period }}</div>
+                            </div>
+                        </div>
+
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">{{ restaurant.pricing_plan.description or 'Your current subscription plan' }}</p>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px;">
+                            {% if restaurant.pricing_plan.has_kitchen_display %}
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <i class="bi bi-check-circle-fill" style="color: var(--accent-green);"></i>
+                                <span>Kitchen Display</span>
+                            </div>
+                            {% endif %}
+                            {% if restaurant.pricing_plan.has_customer_display %}
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <i class="bi bi-check-circle-fill" style="color: var(--accent-green);"></i>
+                                <span>Customer Display</span>
+                            </div>
+                            {% endif %}
+                            {% if restaurant.pricing_plan.has_owner_dashboard %}
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <i class="bi bi-check-circle-fill" style="color: var(--accent-green);"></i>
+                                <span>Owner Dashboard</span>
+                            </div>
+                            {% endif %}
+                            {% if restaurant.pricing_plan.has_advanced_analytics %}
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <i class="bi bi-check-circle-fill" style="color: var(--accent-green);"></i>
+                                <span>Advanced Analytics</span>
+                            </div>
+                            {% endif %}
+                            {% if restaurant.pricing_plan.has_reports_export %}
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <i class="bi bi-check-circle-fill" style="color: var(--accent-green);"></i>
+                                <span>Reports Export</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div style="padding: 16px; background: var(--bg-card-hover); border-radius: 12px;">
+                            <h4 style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">PLAN LIMITS</h4>
+                            <div style="display: grid; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                    <span style="color: var(--text-secondary);">Max Tables:</span>
+                                    <strong>{{ restaurant.pricing_plan.max_tables or 'Unlimited' }}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                    <span style="color: var(--text-secondary);">Max Menu Items:</span>
+                                    <strong>{{ restaurant.pricing_plan.max_menu_items or 'Unlimited' }}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                    <span style="color: var(--text-secondary);">Max Categories:</span>
+                                    <strong>{{ restaurant.pricing_plan.max_categories or 'Unlimited' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="min-width: 250px;">
+                        <div style="padding: 24px; background: var(--bg-dark); border-radius: 16px; border: 1px solid var(--border);">
+                            <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Subscription Info</h4>
+                            {% if restaurant.subscription_start_date %}
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Started</div>
+                                <div style="font-size: 14px; font-weight: 600;">{{ restaurant.subscription_start_date.strftime('%b %d, %Y') }}</div>
+                            </div>
+                            {% endif %}
+                            {% if restaurant.subscription_end_date %}
+                            <div style="margin-bottom: 20px;">
+                                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Renews</div>
+                                <div style="font-size: 14px; font-weight: 600;">{{ restaurant.subscription_end_date.strftime('%b %d, %Y') }}</div>
+                            </div>
+                            {% endif %}
+                            <a href="{{ url_for('owner.upgrade_plan') }}" class="btn btn-primary" style="width: 100%; justify-content: center; margin-bottom: 8px;">
+                                <i class="bi bi-arrow-up-circle"></i>
+                                Upgrade Plan
+                            </a>
+                            <a href="mailto:support@yourplatform.com?subject=Plan Change Request" class="btn" style="width: 100%; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary);">
+                                <i class="bi bi-envelope"></i>
+                                Contact Support
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="bi bi-exclamation-triangle-fill"></i> No Active Plan</h3>
+            </div>
+            <div class="card-body" style="text-align: center; padding: 48px 24px;">
+                <i class="bi bi-box-seam" style="font-size: 64px; color: var(--text-muted); display: block; margin-bottom: 16px;"></i>
+                <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">You don't have an active plan</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 24px;">Subscribe to a plan to unlock all features</p>
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-star-fill"></i>
+                    View Pricing Plans
+                </a>
+            </div>
+        </div>
+        {% endif %}
 
         <form method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -268,9 +396,35 @@
                 </div>
                 <div class="card-body">
                     <div class="form-group">
-                        <label class="form-label">Currency Symbol</label>
-                        <input type="text" name="currency_symbol" class="form-control" value="{{ restaurant.currency_symbol or '$' }}" style="max-width: 100px;">
-                        <div class="form-hint">Symbol to display on invoices (e.g., $, RM, £, €)</div>
+                        <label class="form-label">Restaurant Currency</label>
+                        <select name="currency_symbol" class="form-control" style="max-width: 350px;">
+                            <option value="$" {{ 'selected' if restaurant.currency_symbol == '$' else '' }}>$ - US Dollar (USD)</option>
+                            <option value="€" {{ 'selected' if restaurant.currency_symbol == '€' else '' }}>€ - Euro (EUR)</option>
+                            <option value="£" {{ 'selected' if restaurant.currency_symbol == '£' else '' }}>£ - British Pound (GBP)</option>
+                            <option value="¥" {{ 'selected' if restaurant.currency_symbol == '¥' else '' }}>¥ - Japanese Yen (JPY)</option>
+                            <option value="₹" {{ 'selected' if restaurant.currency_symbol == '₹' else '' }}>₹ - Indian Rupee (INR)</option>
+                            <option value="৳" {{ 'selected' if restaurant.currency_symbol == '৳' else '' }}>৳ - Bangladeshi Taka (BDT)</option>
+                            <option value="A$" {{ 'selected' if restaurant.currency_symbol == 'A$' else '' }}>A$ - Australian Dollar (AUD)</option>
+                            <option value="C$" {{ 'selected' if restaurant.currency_symbol == 'C$' else '' }}>C$ - Canadian Dollar (CAD)</option>
+                            <option value="RM" {{ 'selected' if restaurant.currency_symbol == 'RM' else '' }}>RM - Malaysian Ringgit (MYR)</option>
+                            <option value="S$" {{ 'selected' if restaurant.currency_symbol == 'S$' else '' }}>S$ - Singapore Dollar (SGD)</option>
+                            <option value="₱" {{ 'selected' if restaurant.currency_symbol == '₱' else '' }}>₱ - Philippine Peso (PHP)</option>
+                            <option value="฿" {{ 'selected' if restaurant.currency_symbol == '฿' else '' }}>฿ - Thai Baht (THB)</option>
+                            <option value="R" {{ 'selected' if restaurant.currency_symbol == 'R' else '' }}>R - South African Rand (ZAR)</option>
+                            <option value="AED" {{ 'selected' if restaurant.currency_symbol == 'AED' else '' }}>AED - UAE Dirham (AED)</option>
+                            <option value="SAR" {{ 'selected' if restaurant.currency_symbol == 'SAR' else '' }}>SAR - Saudi Riyal (SAR)</option>
+                            <option value="₪" {{ 'selected' if restaurant.currency_symbol == '₪' else '' }}>₪ - Israeli Shekel (ILS)</option>
+                            <option value="₩" {{ 'selected' if restaurant.currency_symbol == '₩' else '' }}>₩ - South Korean Won (KRW)</option>
+                            <option value="元" {{ 'selected' if restaurant.currency_symbol == '元' else '' }}>元 - Chinese Yuan (CNY)</option>
+                            <option value="Rp" {{ 'selected' if restaurant.currency_symbol == 'Rp' else '' }}>Rp - Indonesian Rupiah (IDR)</option>
+                            <option value="₫" {{ 'selected' if restaurant.currency_symbol == '₫' else '' }}>₫ - Vietnamese Dong (VND)</option>
+                            <option value="₦" {{ 'selected' if restaurant.currency_symbol == '₦' else '' }}>₦ - Nigerian Naira (NGN)</option>
+                            <option value="R$" {{ 'selected' if restaurant.currency_symbol == 'R$' else '' }}>R$ - Brazilian Real (BRL)</option>
+                            <option value="₺" {{ 'selected' if restaurant.currency_symbol == '₺' else '' }}>₺ - Turkish Lira (TRY)</option>
+                            <option value="Mex$" {{ 'selected' if restaurant.currency_symbol == 'Mex$' else '' }}>Mex$ - Mexican Peso (MXN)</option>
+                            <option value="CHF" {{ 'selected' if restaurant.currency_symbol == 'CHF' else '' }}>CHF - Swiss Franc (CHF)</option>
+                        </select>
+                        <div class="form-hint">Select your restaurant's operating currency. This will be used for menu prices, orders, and invoices.</div>
                     </div>
 
                     <!-- Invoice Footer Toggle -->

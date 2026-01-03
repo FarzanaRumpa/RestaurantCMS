@@ -97,6 +97,110 @@
         .payment-option:hover { border-color: #1a1a1a; }
         .payment-option.active { border-color: #1a1a1a; background: #f8f8f8; }
         .payment-option input[type="radio"] { margin-right: 10px; }
+        /* Success Modal Styles */
+        .success-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .success-overlay.show { display: flex; }
+
+        .success-modal-box {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-modal-icon {
+            width: 80px;
+            height: 80px;
+            background: #27ae60;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            animation: iconPop 0.5s ease 0.2s backwards;
+        }
+
+        @keyframes iconPop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .success-modal-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        .success-modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .success-modal-message {
+            color: #666;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .success-modal-buttons {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+
+        .success-btn {
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .success-btn-primary {
+            background: #27ae60;
+            color: white;
+        }
+
+        .success-btn-primary:hover {
+            background: #229954;
+        }
+
+        .success-btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .success-btn-secondary:hover {
+            background: #e8e8e8;
+        }
+
         .pay-btn {
             background: #27ae60;
             color: white;
@@ -202,7 +306,33 @@
 
     <button class="pay-btn" onclick="confirmPayment()">Confirm Payment Method</button>
 
+    <!-- Success Modal -->
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-modal-box">
+            <div class="success-modal-icon">
+                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            </div>
+            <h3 class="success-modal-title">Order Confirmed!</h3>
+            <p class="success-modal-message">
+                Your payment method has been confirmed. Your delicious food will be ready soon!
+                <br><br>
+                <strong>Want to order more?</strong><br>
+                Browse our menu and place another order anytime.
+            </p>
+            <div class="success-modal-buttons">
+                <button class="success-btn success-btn-primary" onclick="redirectToMenu()">
+                    <i class="bi bi-arrow-left-circle"></i>
+                    Browse Menu & Order More
+                </button>
+                <button class="success-btn success-btn-secondary" onclick="closeModal()">
+                    Stay on This Page
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <script>
         function selectPayment(method) {
             document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('active'));
@@ -211,12 +341,21 @@
         }
 
         function confirmPayment() {
-            const selected = document.querySelector('input[name="payment"]:checked').value;
-            alert(`Payment method "${selected}" confirmed!\n\nThank you for your order. Your food will be ready soon.`);
-            // In a real application, you would process the payment here
-            setTimeout(() => {
-                window.location.href = '/menu/{{ order.restaurant.public_id }}';
-            }, 2000);
+            const selected = document.querySelector('input[name="payment"]:checked');
+            if (!selected) {
+                alert('Please select a payment method');
+                return;
+            }
+            // Show success modal
+            document.getElementById('successOverlay').classList.add('show');
+        }
+
+        function redirectToMenu() {
+            window.location.href = '/menu/{{ order.restaurant.public_id }}';
+        }
+
+        function closeModal() {
+            document.getElementById('successOverlay').classList.remove('show');
         }
     </script>
 </body>

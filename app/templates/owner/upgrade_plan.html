@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrade Plan - {{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --bg-sidebar: #0d0d12;
+            --border: #1f1f2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8b8b9e;
+            --text-muted: #5a5a6e;
+            --accent-primary: #6366f1;
+            --accent-primary-glow: rgba(99, 102, 241, 0.2);
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --accent-green-bg: rgba(34, 197, 94, 0.1);
+            --accent-orange: #f97316;
+            --accent-red-bg: rgba(239, 68, 68, 0.1);
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --sidebar-width: 260px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-dark); color: var(--text-primary); min-height: 100vh; }
+
+        /* Light Mode */
+        body.light-mode {
+            --bg-dark: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8f9fa;
+            --bg-sidebar: #ffffff;
+            --border: #e0e0e0;
+            --text-primary: #1a1a2e;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --accent-primary-glow: rgba(99, 102, 241, 0.1);
+            --accent-green-bg: rgba(34, 197, 94, 0.08);
+            --accent-orange-bg: rgba(249, 115, 22, 0.08);
+            --accent-red-bg: rgba(239, 68, 68, 0.08);
+        }
+
+        body.light-mode .sidebar {
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+        }
+
+        body.light-mode .plan-card {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-width); background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; }
+        .sidebar-header { padding: 24px; border-bottom: 1px solid var(--border); }
+        .sidebar-brand { display: flex; align-items: center; gap: 14px; }
+        .brand-logo { width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
+        .brand-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .brand-info h1 { font-size: 16px; font-weight: 700; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .brand-info span { font-size: 12px; color: var(--text-secondary); }
+        .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+        .nav-section { margin-bottom: 24px; }
+        .nav-section-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 0 12px; margin-bottom: 8px; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 14px; transition: all 0.2s; margin-bottom: 4px; }
+        .nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+        .nav-item.active { background: var(--accent-primary-glow); color: var(--accent-primary); }
+        .nav-item i { font-size: 18px; width: 24px; text-align: center; }
+        .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+        .user-card { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-card); border-radius: 10px; }
+        .user-avatar { width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent-blue), #06b6d4); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        .user-info h4 { font-size: 14px; font-weight: 600; }
+        .user-info span { font-size: 12px; color: var(--text-secondary); }
+        .btn-logout { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 8px; text-decoration: none; }
+        .btn-logout:hover { background: var(--accent-red-bg); color: var(--accent-red); }
+
+        .main-content { margin-left: var(--sidebar-width); min-height: 100vh; padding: 24px 32px; }
+        .page-header { margin-bottom: 32px; }
+        .page-title h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+        .page-title p { color: var(--text-secondary); font-size: 14px; }
+
+        .current-plan-banner {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .current-plan-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .current-plan-icon i { font-size: 28px; color: white; }
+        .current-plan-text h3 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .current-plan-text p { font-size: 14px; color: var(--text-secondary); }
+
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .plan-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .plan-card:hover { transform: translateY(-4px); border-color: var(--accent-primary); }
+        .plan-card.current { border-color: var(--accent-green); }
+
+        .plan-badge {
+            position: absolute;
+            top: -12px;
+            right: 24px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .plan-badge.current { background: var(--accent-green); color: white; }
+        .plan-badge.recommended { background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple)); color: white; }
+        .plan-badge.upgrade { background: var(--accent-orange); color: white; }
+        .plan-badge.downgrade { background: var(--text-muted); color: white; }
+
+        .plan-header { text-align: center; margin-bottom: 24px; }
+        .plan-name { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+        .plan-price { font-size: 40px; font-weight: 800; color: var(--accent-primary); font-family: 'JetBrains Mono', monospace; }
+        .plan-price span { font-size: 16px; font-weight: 600; color: var(--text-secondary); }
+        .plan-description { color: var(--text-secondary); font-size: 14px; margin-top: 8px; }
+
+        .plan-features { margin-bottom: 24px; }
+        .plan-features h4 { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 16px; }
+        .feature-list { display: flex; flex-direction: column; gap: 10px; }
+        .feature-item { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        .feature-item i.bi-check-circle-fill { color: var(--accent-green); }
+        .feature-item i.bi-x-circle-fill { color: var(--text-muted); }
+        .feature-item.disabled { color: var(--text-muted); text-decoration: line-through; }
+
+        .plan-limits { padding: 16px; background: var(--bg-card-hover); border-radius: 12px; margin-bottom: 24px; }
+        .plan-limits h4 { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; }
+        .limit-item { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+        .limit-item span:first-child { color: var(--text-secondary); }
+        .limit-item span:last-child { font-weight: 600; }
+
+        .plan-action { text-align: center; }
+        .btn {
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-upgrade { background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple)); color: white; }
+        .btn-upgrade:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3); }
+        .btn-downgrade { background: var(--bg-card-hover); color: var(--text-secondary); border: 1px solid var(--border); }
+        .btn-downgrade:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
+        .btn-current { background: var(--accent-green-bg); color: var(--accent-green); cursor: default; }
+
+        .back-link { margin-top: 32px; text-align: center; }
+        .back-link a { color: var(--text-secondary); text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+        .back-link a:hover { color: var(--accent-primary); }
+
+        .flash-messages { margin-bottom: 24px; }
+        .alert { padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .alert-success { background: var(--accent-green-bg); border: 1px solid rgba(34, 197, 94, 0.3); color: var(--accent-green); }
+        .alert-error { background: var(--accent-red-bg); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--accent-red); }
+        .alert-info { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); }
+
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+
+        .mobile-toggle { display: none; position: fixed; top: 16px; left: 16px; z-index: 200; width: 48px; height: 48px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; align-items: center; justify-content: center; font-size: 24px; color: var(--text-primary); cursor: pointer; }
+        @media (max-width: 992px) { .mobile-toggle { display: flex; } }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+        .sidebar-overlay.open { display: block; }
+    </style>
+</head>
+<body>
+    <button class="mobile-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+    <div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    {% if restaurant and restaurant.logo_path %}
+                    <img src="/static/uploads/logos/{{ restaurant.logo_path }}" alt="{{ restaurant.name }}">
+                    {% else %}
+                    <i class="bi bi-shop"></i>
+                    {% endif %}
+                </div>
+                <div class="brand-info">
+                    <h1>{{ restaurant.name if restaurant else 'Restaurant' }}</h1>
+                    <span>Upgrade Plan</span>
+                </div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                {% if restaurant %}
+                <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
+                <a href="{{ url_for('owner.orders') }}" class="nav-item"><i class="bi bi-receipt"></i>Orders</a>
+                <a href="{{ url_for('owner.menu') }}" class="nav-item"><i class="bi bi-menu-button-wide"></i>Menu</a>
+                <a href="{{ url_for('owner.tables') }}" class="nav-item"><i class="bi bi-grid-3x3"></i>Tables & QR</a>
+                {% endif %}
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Displays</div>
+                {% if restaurant and restaurant.has_feature('kitchen_display') %}
+                <a href="{{ url_for('owner.kitchen_screen') }}" class="nav-item" target="_blank">
+                    <i class="bi bi-fire"></i>
+                    Kitchen Screen
+                </a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item active" style="opacity: 0.7;">
+                    <i class="bi bi-lock-fill"></i>
+                    Kitchen Screen <span style="font-size: 10px; color: var(--accent-orange);">🔒</span>
+                </a>
+                {% endif %}
+                {% if restaurant and restaurant.has_feature('customer_display') %}
+                <a href="/{{ restaurant.id }}/customer-screen" class="nav-item" target="_blank">
+                    <i class="bi bi-display"></i>
+                    Customer Display
+                </a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item active" style="opacity: 0.7;">
+                    <i class="bi bi-lock-fill"></i>
+                    Customer Display <span style="font-size: 10px; color: var(--accent-orange);">🔒</span>
+                </a>
+                {% endif %}
+                {% if restaurant %}
+                <a href="/menu/{{ restaurant.public_id }}" class="nav-item" target="_blank">
+                    <i class="bi bi-phone"></i>
+                    Public Menu
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Account</div>
+                <a href="{{ url_for('owner.profile') }}" class="nav-item"><i class="bi bi-shop-window"></i>Restaurant Profile</a>
+                <a href="{{ url_for('owner.settings') }}" class="nav-item"><i class="bi bi-gear"></i>Settings</a>
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item active"><i class="bi bi-arrow-up-circle"></i>Upgrade Plan</a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">{{ user.username[0]|upper }}</div>
+                <div class="user-info"><h4>{{ user.username }}</h4><span>Owner</span></div>
+                <a href="{{ url_for('owner.logout') }}" class="btn-logout"><i class="bi bi-box-arrow-right"></i></a>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <i class="bi bi-{{ 'check-circle' if category == 'success' else 'info-circle' if category == 'info' else 'exclamation-circle' }}"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <header class="page-header">
+            <div class="page-title">
+                <h1>Choose Your Plan</h1>
+                <p>Select the plan that best fits your restaurant's needs</p>
+            </div>
+        </header>
+
+        {% if current_plan %}
+        <div class="current-plan-banner">
+            <div class="current-plan-icon">
+                <i class="bi bi-award-fill"></i>
+            </div>
+            <div class="current-plan-text">
+                <h3>Currently on {{ current_plan.name }}</h3>
+                <p>${{ current_plan.get_price_for_country(user_country) }}/{{ current_plan.price_period }}{% if restaurant.subscription_end_date %} • Renews {{ restaurant.subscription_end_date.strftime('%b %d, %Y') }}{% endif %}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Country/Region Display (auto-detected, no selection) -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <i class="bi bi-globe2" style="font-size: 24px; color: var(--accent-primary);"></i>
+                <div>
+                    <div style="font-size: 14px; font-weight: 600;">Pricing for {{ country_info.country_name }}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        {{ country_info.tier_name }} pricing tier
+                        {% if country_info.discount_percent > 0 %}
+                        <span style="color: var(--accent-green); margin-left: 8px;">{{ country_info.discount_percent }}% regional discount applied</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted);">
+                <i class="bi bi-info-circle me-1"></i>
+                Based on your restaurant location. Update in <a href="{{ url_for('owner.profile') }}" style="color: var(--accent-primary);">Profile</a>
+            </div>
+        </div>
+
+        <div class="plans-grid">
+            {% for plan in plans %}
+            {% set plan_price = plan.get_price_for_country(user_country) %}
+            <div class="plan-card {% if current_plan and plan.id == current_plan.id %}current{% endif %}">
+                {% if current_plan and plan.id == current_plan.id %}
+                <span class="plan-badge current">Current Plan</span>
+                {% elif current_plan and plan_price > current_plan.get_price_for_country(user_country) %}
+                <span class="plan-badge recommended">Recommended</span>
+                {% elif current_plan and plan_price < current_plan.get_price_for_country(user_country) %}
+                <span class="plan-badge downgrade">Downgrade</span>
+                {% endif %}
+
+                <div class="plan-header">
+                    <div class="plan-name">{{ plan.name }}</div>
+                    <div class="plan-price">${{ "%.2f"|format(plan_price) }}<span>/{{ plan.price_period }}</span></div>
+                    {% if plan.description %}
+                    <div class="plan-description">{{ plan.description }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="plan-features">
+                    <h4>Features</h4>
+                    <div class="feature-list">
+                        <div class="feature-item {% if not plan.has_kitchen_display %}disabled{% endif %}">
+                            <i class="bi bi-{% if plan.has_kitchen_display %}check{% else %}x{% endif %}-circle-fill"></i>
+                            <span>Kitchen Display</span>
+                        </div>
+                        <div class="feature-item {% if not plan.has_customer_display %}disabled{% endif %}">
+                            <i class="bi bi-{% if plan.has_customer_display %}check{% else %}x{% endif %}-circle-fill"></i>
+                            <span>Customer Display</span>
+                        </div>
+                        <div class="feature-item {% if not plan.has_owner_dashboard %}disabled{% endif %}">
+                            <i class="bi bi-{% if plan.has_owner_dashboard %}check{% else %}x{% endif %}-circle-fill"></i>
+                            <span>Owner Dashboard</span>
+                        </div>
+                        <div class="feature-item {% if not plan.has_advanced_analytics %}disabled{% endif %}">
+                            <i class="bi bi-{% if plan.has_advanced_analytics %}check{% else %}x{% endif %}-circle-fill"></i>
+                            <span>Advanced Analytics</span>
+                        </div>
+                        <div class="feature-item {% if not plan.has_reports_export %}disabled{% endif %}">
+                            <i class="bi bi-{% if plan.has_reports_export %}check{% else %}x{% endif %}-circle-fill"></i>
+                            <span>Reports Export</span>
+                        </div>
+                        <div class="feature-item {% if not plan.has_priority_support %}disabled{% endif %}">
+                            <i class="bi bi-{% if plan.has_priority_support %}check{% else %}x{% endif %}-circle-fill"></i>
+                            <span>Priority Support</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plan-limits">
+                    <h4>Limits</h4>
+                    <div class="limit-item">
+                        <span>Tables</span>
+                        <span>{{ plan.max_tables or 'Unlimited' }}</span>
+                    </div>
+                    <div class="limit-item">
+                        <span>Menu Items</span>
+                        <span>{{ plan.max_menu_items or 'Unlimited' }}</span>
+                    </div>
+                    <div class="limit-item">
+                        <span>Categories</span>
+                        <span>{{ plan.max_categories or 'Unlimited' }}</span>
+                    </div>
+                </div>
+
+                <div class="plan-action">
+                    {% if current_plan and plan.id == current_plan.id %}
+                    <button class="btn btn-current" disabled>
+                        <i class="bi bi-check-circle-fill"></i>
+                        Current Plan
+                    </button>
+                    {% elif current_plan and plan.price > current_plan.price %}
+                    <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST">
+                        <button type="submit" class="btn btn-upgrade">
+                            <i class="bi bi-arrow-up-circle-fill"></i>
+                            Upgrade to {{ plan.name }}
+                        </button>
+                    </form>
+                    {% elif current_plan and plan.price < current_plan.price %}
+                    <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to downgrade? You may lose access to some features.');">
+                        <button type="submit" class="btn btn-downgrade">
+                            <i class="bi bi-arrow-down-circle"></i>
+                            Downgrade to {{ plan.name }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST">
+                        <button type="submit" class="btn btn-upgrade">
+                            <i class="bi bi-arrow-up-circle-fill"></i>
+                            Select {{ plan.name }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="back-link">
+            <a href="{{ url_for('owner.settings') }}">
+                <i class="bi bi-arrow-left"></i>
+                Back to Settings
+            </a>
+        </div>
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        // Load saved theme
+        (function() {
+            const savedTheme = localStorage.getItem('owner-theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+            }
+        })();
+    </script>
+</body>
+</html>
+

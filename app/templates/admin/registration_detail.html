@@ -251,7 +251,7 @@
 
 <!-- Approve Modal -->
 <div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form action="{{ url_for('admin.approve_registration', request_id=request.id) }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -268,9 +268,47 @@
                             <li>A new restaurant: <strong>{{ request.restaurant_name }}</strong></li>
                         </ul>
                     </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label" for="approveplanId">Pricing Plan (Optional)</label>
+                            <select name="pricing_plan_id" id="approvePlanId" class="form-select">
+                                <option value="">No Plan (Limited Access)</option>
+                                {% if pricing_plans %}
+                                {% for plan in pricing_plans %}
+                                <option value="{{ plan.id }}">{{ plan.name }} - ${{ plan.price }}/{{ plan.price_period }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                            <small class="form-text text-muted">Selected plan will determine available features and limits</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="approveCountryCode">Country</label>
+                            <select name="country_code" id="approveCountryCode" class="form-select">
+                                <option value="US">USA (Tier 1)</option>
+                                <option value="GB">UK (Tier 1)</option>
+                                <option value="AU">Australia (Tier 1)</option>
+                                <option value="CA">Canada (Tier 1)</option>
+                                <option value="SG">Singapore (Tier 1)</option>
+                                <option value="AE">UAE (Tier 2)</option>
+                                <option value="SA">Saudi Arabia (Tier 2)</option>
+                                <option value="TR">Turkey (Tier 2)</option>
+                                <option value="MY">Malaysia (Tier 2)</option>
+                                <option value="IN">India (Tier 3)</option>
+                                <option value="PK">Pakistan (Tier 3)</option>
+                                <option value="BD">Bangladesh (Tier 3)</option>
+                                <option value="CN">China (Tier 3)</option>
+                                <option value="NG">Nigeria (Tier 4)</option>
+                                <option value="KE">Kenya (Tier 4)</option>
+                                <option value="GH">Ghana (Tier 4)</option>
+                            </select>
+                            <small class="form-text text-muted">For tier-based pricing</small>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Notes (optional)</label>
-                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                        <label class="form-label" for="approveNotes">Notes (optional)</label>
+                        <textarea name="notes" id="approveNotes" class="form-control" rows="2"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

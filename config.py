@@ -15,6 +15,10 @@ class Config:
 
     WTF_CSRF_ENABLED = True
 
+    # Template settings - disable caching for development
+    TEMPLATES_AUTO_RELOAD = True
+    SEND_FILE_MAX_AGE_DEFAULT = 0
+
     ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'SuperAdmin')
     ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '123456')
     ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@system.local')

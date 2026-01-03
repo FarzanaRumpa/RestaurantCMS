@@ -48,6 +48,10 @@ class Restaurant(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     address = db.Column(db.String(255))
+    city = db.Column(db.String(100))  # City
+    country = db.Column(db.String(100))  # Country name
+    postal_code = db.Column(db.String(20))  # Postal/ZIP code
+    category = db.Column(db.String(100))  # Restaurant category (e.g., Fast Food, Fine Dining)
     phone = db.Column(db.String(20))
     email = db.Column(db.String(120))
     website = db.Column(db.String(255))
@@ -81,6 +85,14 @@ class Restaurant(db.Model):
     order_notification_email = db.Column(db.String(120))
     order_notification_enabled = db.Column(db.Boolean, default=True)
 
+    # Subscription / Pricing Plan
+    pricing_plan_id = db.Column(db.Integer, db.ForeignKey('pricing_plans.id'))
+    country_code = db.Column(db.String(5), default='US')  # For tier-based pricing
+    subscription_start_date = db.Column(db.DateTime)
+    subscription_end_date = db.Column(db.DateTime)
+    is_trial = db.Column(db.Boolean, default=False)
+    trial_ends_at = db.Column(db.DateTime)
+
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -88,6 +100,79 @@ class Restaurant(db.Model):
     tables = db.relationship('Table', backref='restaurant', lazy=True, cascade='all, delete-orphan')
     categories = db.relationship('Category', backref='restaurant', lazy=True, cascade='all, delete-orphan')
     orders = db.relationship('Order', backref='restaurant', lazy=True, cascade='all, delete-orphan')
+
+    # Add late import to avoid circular imports
+    @property
+    def pricing_plan(self):
+        """Get the pricing plan for this restaurant"""
+        if self.pricing_plan_id:
+            from app.models.website_content_models import PricingPlan
+            return PricingPlan.query.get(self.pricing_plan_id)
+        return None
+
+    def has_feature(self, feature_name):
+        """Check if restaurant has access to a specific feature based on plan"""
+        plan = self.pricing_plan
+        if not plan:
+            return False  # No plan = no features
+
+        feature_map = {
+            'kitchen_display': plan.has_kitchen_display,
+            'customer_display': plan.has_customer_display,
+            'owner_dashboard': plan.has_owner_dashboard,
+            'advanced_analytics': plan.has_advanced_analytics,
+            'qr_ordering': plan.has_qr_ordering,
+            'table_management': plan.has_table_management,
+            'order_history': plan.has_order_history,
+            'customer_feedback': plan.has_customer_feedback,
+            'inventory_management': plan.has_inventory_management,
+            'staff_management': plan.has_staff_management,
+            'multi_language': plan.has_multi_language,
+            'custom_branding': plan.has_custom_branding,
+            'email_notifications': plan.has_email_notifications,
+            'sms_notifications': plan.has_sms_notifications,
+            'api_access': plan.has_api_access,
+            'priority_support': plan.has_priority_support,
+            'white_label': plan.has_white_label,
+            'reports_export': plan.has_reports_export,
+            'pos_integration': plan.has_pos_integration,
+            'payment_integration': plan.has_payment_integration
+        }
+        return feature_map.get(feature_name, False)
+
+    def get_limit(self, limit_name):
+        """Get a specific limit from the plan"""
+        plan = self.pricing_plan
+        if not plan:
+            return None
+
+        limit_map = {
+            'max_tables': plan.max_tables,
+            'max_menu_items': plan.max_menu_items,
+            'max_categories': plan.max_categories,
+            'max_orders_per_month': plan.max_orders_per_month,
+            'max_restaurants': plan.max_restaurants,
+            'max_staff_accounts': plan.max_staff_accounts
+        }
+        return limit_map.get(limit_name)
+
+    def can_add_table(self):
+        """Check if restaurant can add more tables"""
+        max_tables = self.get_limit('max_tables')
+        if max_tables is None:
+            return True  # Unlimited
+        return len(self.tables) < max_tables
+
+    def can_add_menu_item(self):
+        """Check if restaurant can add more menu items"""
+        max_items = self.get_limit('max_menu_items')
+        if max_items is None:
+            return True  # Unlimited
+        # Use the Category relationship to count menu items
+        total_items = 0
+        for category in self.categories:
+            total_items += len(category.items)
+        return total_items < max_items
 
     def to_dict(self):
         return {
@@ -195,11 +280,16 @@ class Order(db.Model):
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
 
     def generate_order_number(self):
-        # Generate a short 4-digit order number for display
-        # Format: last 4 chars of hex ID for uniqueness within restaurant/day
-        import random
-        short_id = random.randint(1000, 9999)
-        self.order_number = f"#{short_id}"
+        # Generate sequential order number for the restaurant
+        # Format: #XXXX (4-digit sequential number per restaurant)
+        from sqlalchemy import func
+
+        # Get the count of orders for this restaurant (including this one)
+        order_count = db.session.query(func.count(Order.id)).filter_by(restaurant_id=self.restaurant_id).scalar() or 0
+
+        # Generate 4-digit sequential number (resets after 9999)
+        sequential_num = (order_count % 10000) + 1
+        self.order_number = f"#{sequential_num:04d}"
 
     def calculate_total(self):
         self.total_price = sum(item.subtotal for item in self.items)

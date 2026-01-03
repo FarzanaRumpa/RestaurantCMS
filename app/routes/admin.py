@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, jsonify, g, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, jsonify, g, send_file, make_response
 from functools import wraps
 from app import db
 from app.models import User, Restaurant, Order, Category, Table, MenuItem, ApiKey, RegistrationRequest, ModerationLog
@@ -145,13 +145,86 @@ def owner_login():
         # Only allow restaurant_owner role
         user = User.query.filter_by(username=username, role='restaurant_owner').first()
         if user and user.check_password(password) and user.is_active:
+            session['owner_logged_in'] = True
             session['admin_logged_in'] = True
             session['admin_user_id'] = user.id
             session['admin_role'] = user.role
+            session['owner_user_id'] = user.id
             flash(f'Welcome, {user.username}!', 'success')
             return redirect(url_for('admin.restaurant_owner_view'))
         flash('Invalid username or password', 'error')
-    return render_template('admin/owner_login.html')
+    return render_template('admin/owner_login_new.html')
+
+@admin_bp.route('/owner-signup', methods=['POST'])
+def owner_signup():
+    """Restaurant owner signup with package selection"""
+    from datetime import datetime, timedelta
+    try:
+        # Get form data
+        restaurant_name = request.form.get('restaurant_name')
+        owner_name = request.form.get('owner_name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        pricing_plan_id = request.form.get('pricing_plan_id')
+        country_code = request.form.get('country_code', 'US')
+
+        # Validation
+        if not all([restaurant_name, owner_name, email, username, password, pricing_plan_id]):
+            flash('All required fields must be filled', 'error')
+            return redirect(url_for('admin.owner_login'))
+
+        # Check if username or email already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'error')
+            return redirect(url_for('admin.owner_login'))
+
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered', 'error')
+            return redirect(url_for('admin.owner_login'))
+
+        # Create user
+        user = User(
+            username=username,
+            email=email,
+            phone=phone,
+            role='restaurant_owner',
+            is_active=True
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.flush()  # Get user ID
+
+        # Create restaurant with pricing plan
+        restaurant = Restaurant(
+            name=restaurant_name,
+            phone=phone,
+            owner_id=user.id,
+            is_active=True,
+            pricing_plan_id=int(pricing_plan_id),
+            country_code=country_code.upper() if country_code else 'US',
+            subscription_start_date=datetime.utcnow(),
+            is_trial=True,
+            trial_ends_at=datetime.utcnow() + timedelta(days=14)  # 14-day trial
+        )
+        db.session.add(restaurant)
+        db.session.commit()
+
+        # Log them in automatically
+        session['owner_logged_in'] = True
+        session['admin_logged_in'] = True
+        session['admin_user_id'] = user.id
+        session['admin_role'] = user.role
+        session['owner_user_id'] = user.id
+
+        flash(f'Welcome to RestaurantPro, {owner_name}! Your account has been created successfully.', 'success')
+        return redirect(url_for('admin.restaurant_owner_view'))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred during signup: {str(e)}', 'error')
+        return redirect(url_for('admin.owner_login'))
 
 @admin_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -567,6 +640,470 @@ def toggle_feature(id):
     db.session.commit()
     flash(f'Feature {"activated" if feature.is_active else "deactivated"}', 'success')
     return redirect(url_for('admin.features'))
+
+# ============================================================================
+# PRICING PLANS MANAGEMENT ROUTES
+# ============================================================================
+
+@admin_bp.route('/pricing-plans')
+@admin_required
+def pricing_plans():
+    """Manage pricing plans"""
+    from app.models.website_content_models import PricingPlan
+    import json
+    import time
+
+    plans = PricingPlan.query.order_by(PricingPlan.display_order, PricingPlan.created_at.desc()).all()
+
+    # Parse features JSON for display - use a separate list to avoid ORM modification
+    plans_data = []
+    for plan in plans:
+        features_list = []
+        if plan.features and isinstance(plan.features, str):
+            try:
+                features_list = json.loads(plan.features)
+            except:
+                # If JSON parsing fails, try splitting by newline
+                features_list = [f.strip() for f in plan.features.split('\n') if f.strip()]
+
+        plans_data.append({
+            'plan': plan,
+            'features_list': features_list,
+            'features_json': plan.features  # Keep original for edit form
+        })
+
+    # Add cache-busting timestamp
+    cache_buster = int(time.time())
+
+    # Get all countries by tier for display
+    countries_by_tier = PricingPlan.get_all_countries_by_tier()
+
+    response = make_response(render_template('admin/website_content/pricing_plans.html',
+                         plans_data=plans_data,
+                         countries_by_tier=countries_by_tier,
+                         cache_version=cache_buster))
+
+    # Disable all caching
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+
+    return response
+
+@admin_bp.route('/pricing-plans/create', methods=['POST'])
+@admin_required
+def create_pricing_plan():
+    """Create new pricing plan"""
+    from app.models.website_content_models import PricingPlan
+    import json
+    user = get_current_admin_user()
+
+    # Get features as JSON array
+    features_list = request.form.getlist('features[]')
+    features_json = json.dumps(features_list) if features_list else '[]'
+
+    plan = PricingPlan(
+        name=request.form.get('name'),
+        description=request.form.get('description'),
+        price=float(request.form.get('price', 0)),
+        price_tier2=float(request.form.get('price_tier2')) if request.form.get('price_tier2') else None,
+        price_tier3=float(request.form.get('price_tier3')) if request.form.get('price_tier3') else None,
+        price_tier4=float(request.form.get('price_tier4')) if request.form.get('price_tier4') else None,
+        price_period=request.form.get('price_period', 'month'),
+        currency=request.form.get('currency', 'USD'),
+        features=features_json,
+        is_highlighted=request.form.get('is_highlighted') == '1',
+        display_order=int(request.form.get('display_order', 0)),
+        badge_text=request.form.get('badge_text') or None,
+        cta_text=request.form.get('cta_text', 'Get Started'),
+        cta_link=request.form.get('cta_link', '/owner/login'),
+        # Limits
+        max_tables=int(request.form.get('max_tables')) if request.form.get('max_tables') else None,
+        max_menu_items=int(request.form.get('max_menu_items')) if request.form.get('max_menu_items') else None,
+        max_categories=int(request.form.get('max_categories')) if request.form.get('max_categories') else None,
+        max_orders_per_month=int(request.form.get('max_orders_per_month')) if request.form.get('max_orders_per_month') else None,
+        max_restaurants=int(request.form.get('max_restaurants')) if request.form.get('max_restaurants') else None,
+        max_staff_accounts=int(request.form.get('max_staff_accounts')) if request.form.get('max_staff_accounts') else None,
+        # Feature toggles
+        has_kitchen_display=request.form.get('has_kitchen_display') == '1',
+        has_customer_display=request.form.get('has_customer_display') == '1',
+        has_owner_dashboard=request.form.get('has_owner_dashboard') == '1',
+        has_advanced_analytics=request.form.get('has_advanced_analytics') == '1',
+        has_qr_ordering=request.form.get('has_qr_ordering') == '1',
+        has_table_management=request.form.get('has_table_management') == '1',
+        has_order_history=request.form.get('has_order_history') == '1',
+        has_customer_feedback=request.form.get('has_customer_feedback') == '1',
+        has_inventory_management=request.form.get('has_inventory_management') == '1',
+        has_staff_management=request.form.get('has_staff_management') == '1',
+        has_multi_language=request.form.get('has_multi_language') == '1',
+        has_custom_branding=request.form.get('has_custom_branding') == '1',
+        has_email_notifications=request.form.get('has_email_notifications') == '1',
+        has_sms_notifications=request.form.get('has_sms_notifications') == '1',
+        has_api_access=request.form.get('has_api_access') == '1',
+        has_priority_support=request.form.get('has_priority_support') == '1',
+        has_white_label=request.form.get('has_white_label') == '1',
+        has_reports_export=request.form.get('has_reports_export') == '1',
+        has_pos_integration=request.form.get('has_pos_integration') == '1',
+        has_payment_integration=request.form.get('has_payment_integration') == '1',
+        is_active=request.form.get('is_active') == '1',
+        created_by_id=user.id
+    )
+    db.session.add(plan)
+    db.session.commit()
+    flash('Pricing plan created successfully', 'success')
+    return redirect(url_for('admin.pricing_plans'))
+
+@admin_bp.route('/pricing-plans/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_pricing_plan(id):
+    """Edit pricing plan"""
+    from app.models.website_content_models import PricingPlan
+    import json
+    plan = PricingPlan.query.get_or_404(id)
+
+    features_list = request.form.getlist('features[]')
+    features_json = json.dumps(features_list) if features_list else '[]'
+
+    plan.name = request.form.get('name')
+    plan.description = request.form.get('description')
+    plan.price = float(request.form.get('price', 0))
+    plan.price_tier2 = float(request.form.get('price_tier2')) if request.form.get('price_tier2') else None
+    plan.price_tier3 = float(request.form.get('price_tier3')) if request.form.get('price_tier3') else None
+    plan.price_tier4 = float(request.form.get('price_tier4')) if request.form.get('price_tier4') else None
+    plan.price_period = request.form.get('price_period', 'month')
+    plan.currency = request.form.get('currency', 'USD')
+    plan.features = features_json
+    plan.is_highlighted = request.form.get('is_highlighted') == '1'
+    plan.display_order = int(request.form.get('display_order', 0))
+    plan.badge_text = request.form.get('badge_text') or None
+    plan.cta_text = request.form.get('cta_text', 'Get Started')
+    plan.cta_link = request.form.get('cta_link', '/owner/login')
+    # Limits
+    plan.max_tables = int(request.form.get('max_tables')) if request.form.get('max_tables') else None
+    plan.max_menu_items = int(request.form.get('max_menu_items')) if request.form.get('max_menu_items') else None
+    plan.max_categories = int(request.form.get('max_categories')) if request.form.get('max_categories') else None
+    plan.max_orders_per_month = int(request.form.get('max_orders_per_month')) if request.form.get('max_orders_per_month') else None
+    plan.max_restaurants = int(request.form.get('max_restaurants')) if request.form.get('max_restaurants') else None
+    plan.max_staff_accounts = int(request.form.get('max_staff_accounts')) if request.form.get('max_staff_accounts') else None
+    # Feature toggles
+    plan.has_kitchen_display = request.form.get('has_kitchen_display') == '1'
+    plan.has_customer_display = request.form.get('has_customer_display') == '1'
+    plan.has_owner_dashboard = request.form.get('has_owner_dashboard') == '1'
+    plan.has_advanced_analytics = request.form.get('has_advanced_analytics') == '1'
+    plan.has_qr_ordering = request.form.get('has_qr_ordering') == '1'
+    plan.has_table_management = request.form.get('has_table_management') == '1'
+    plan.has_order_history = request.form.get('has_order_history') == '1'
+    plan.has_customer_feedback = request.form.get('has_customer_feedback') == '1'
+    plan.has_inventory_management = request.form.get('has_inventory_management') == '1'
+    plan.has_staff_management = request.form.get('has_staff_management') == '1'
+    plan.has_multi_language = request.form.get('has_multi_language') == '1'
+    plan.has_custom_branding = request.form.get('has_custom_branding') == '1'
+    plan.has_email_notifications = request.form.get('has_email_notifications') == '1'
+    plan.has_sms_notifications = request.form.get('has_sms_notifications') == '1'
+    plan.has_api_access = request.form.get('has_api_access') == '1'
+    plan.has_priority_support = request.form.get('has_priority_support') == '1'
+    plan.has_white_label = request.form.get('has_white_label') == '1'
+    plan.has_reports_export = request.form.get('has_reports_export') == '1'
+    plan.has_pos_integration = request.form.get('has_pos_integration') == '1'
+    plan.has_payment_integration = request.form.get('has_payment_integration') == '1'
+    plan.is_active = request.form.get('is_active') == '1'
+
+    db.session.commit()
+    flash('Pricing plan updated successfully', 'success')
+    return redirect(url_for('admin.pricing_plans'))
+
+@admin_bp.route('/pricing-plans/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_pricing_plan(id):
+    """Toggle pricing plan status"""
+    from app.models.website_content_models import PricingPlan
+    plan = PricingPlan.query.get_or_404(id)
+    plan.is_active = not plan.is_active
+    db.session.commit()
+    flash(f'Pricing plan {"activated" if plan.is_active else "deactivated"}', 'success')
+    return redirect(url_for('admin.pricing_plans'))
+
+@admin_bp.route('/pricing-plans/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_pricing_plan(id):
+    """Delete pricing plan"""
+    from app.models.website_content_models import PricingPlan
+    plan = PricingPlan.query.get_or_404(id)
+    db.session.delete(plan)
+    db.session.commit()
+    flash('Pricing plan deleted successfully', 'success')
+    return redirect(url_for('admin.pricing_plans'))
+
+
+# ============================================================================
+# PAYMENT GATEWAY MANAGEMENT ROUTES
+# ============================================================================
+
+@admin_bp.route('/payment-gateways')
+@admin_required
+def payment_gateways():
+    """Manage payment gateways"""
+    from app.models.website_content_models import PaymentGateway, PaymentTransaction
+    gateways = PaymentGateway.query.order_by(PaymentGateway.display_order).all()
+
+    # Get recent transactions
+    recent_transactions = PaymentTransaction.query.order_by(
+        PaymentTransaction.created_at.desc()
+    ).limit(10).all()
+
+    # Get transaction stats
+    from sqlalchemy import func
+    stats = {
+        'total_transactions': PaymentTransaction.query.count(),
+        'successful_transactions': PaymentTransaction.query.filter_by(status='completed').count(),
+        'total_revenue': db.session.query(func.sum(PaymentTransaction.amount)).filter_by(status='completed').scalar() or 0
+    }
+
+    return render_template('admin/website_content/payment_gateways.html',
+                         gateways=gateways,
+                         recent_transactions=recent_transactions,
+                         stats=stats)
+
+
+@admin_bp.route('/payment-gateways/init', methods=['POST'])
+@admin_required
+def init_payment_gateways():
+    """Initialize default payment gateways (PayPal and Stripe)"""
+    from app.models.website_content_models import PaymentGateway
+    user = get_current_admin_user()
+
+    # Create PayPal if not exists
+    if not PaymentGateway.query.filter_by(name='paypal').first():
+        paypal = PaymentGateway(
+            name='paypal',
+            display_name='PayPal',
+            description='Pay securely with PayPal. Credit cards, debit cards, and PayPal balance accepted.',
+            icon='bi-paypal',
+            is_sandbox=True,
+            is_active=False,
+            display_order=1,
+            supported_currencies='USD,EUR,GBP,CAD,AUD',
+            created_by_id=user.id
+        )
+        db.session.add(paypal)
+
+    # Create Stripe if not exists
+    if not PaymentGateway.query.filter_by(name='stripe').first():
+        stripe = PaymentGateway(
+            name='stripe',
+            display_name='Stripe',
+            description='Pay securely with credit or debit card via Stripe.',
+            icon='bi-credit-card-2-front',
+            is_sandbox=True,
+            is_active=False,
+            display_order=2,
+            supported_currencies='USD,EUR,GBP,CAD,AUD,JPY,SGD',
+            created_by_id=user.id
+        )
+        db.session.add(stripe)
+
+    db.session.commit()
+    flash('Payment gateways initialized successfully', 'success')
+    return redirect(url_for('admin.payment_gateways'))
+
+
+@admin_bp.route('/payment-gateways/<int:id>/update', methods=['POST'])
+@admin_required
+def update_payment_gateway(id):
+    """Update payment gateway settings"""
+    from app.models.website_content_models import PaymentGateway
+    gateway = PaymentGateway.query.get_or_404(id)
+
+    # Update basic info
+    gateway.display_name = request.form.get('display_name', gateway.display_name)
+    gateway.description = request.form.get('description', gateway.description)
+    gateway.is_sandbox = request.form.get('is_sandbox') == '1'
+    gateway.is_active = request.form.get('is_active') == '1'
+    gateway.supported_currencies = request.form.get('supported_currencies', 'USD')
+    gateway.transaction_fee_percent = float(request.form.get('transaction_fee_percent', 0) or 0)
+
+    # Update gateway-specific credentials
+    if gateway.name == 'paypal':
+        gateway.paypal_client_id = request.form.get('paypal_client_id', '')
+        gateway.paypal_client_secret = request.form.get('paypal_client_secret', '')
+        gateway.paypal_sandbox_client_id = request.form.get('paypal_sandbox_client_id', '')
+        gateway.paypal_sandbox_client_secret = request.form.get('paypal_sandbox_client_secret', '')
+    elif gateway.name == 'stripe':
+        gateway.stripe_publishable_key = request.form.get('stripe_publishable_key', '')
+        gateway.stripe_secret_key = request.form.get('stripe_secret_key', '')
+        gateway.stripe_sandbox_publishable_key = request.form.get('stripe_sandbox_publishable_key', '')
+        gateway.stripe_sandbox_secret_key = request.form.get('stripe_sandbox_secret_key', '')
+
+    gateway.webhook_secret = request.form.get('webhook_secret', '')
+
+    db.session.commit()
+    flash(f'{gateway.display_name} settings updated successfully', 'success')
+    return redirect(url_for('admin.payment_gateways'))
+
+
+@admin_bp.route('/payment-gateways/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_payment_gateway(id):
+    """Toggle payment gateway active status"""
+    from app.models.website_content_models import PaymentGateway
+    gateway = PaymentGateway.query.get_or_404(id)
+    gateway.is_active = not gateway.is_active
+    db.session.commit()
+    flash(f'{gateway.display_name} {"enabled" if gateway.is_active else "disabled"}', 'success')
+    return redirect(url_for('admin.payment_gateways'))
+
+
+@admin_bp.route('/payment-gateways/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_payment_gateway(id):
+    """Delete payment gateway"""
+    from app.models.website_content_models import PaymentGateway
+    gateway = PaymentGateway.query.get_or_404(id)
+    name = gateway.display_name
+    db.session.delete(gateway)
+    db.session.commit()
+    flash(f'{name} deleted successfully', 'success')
+    return redirect(url_for('admin.payment_gateways'))
+
+
+# ============================================================================
+# TESTIMONIALS MANAGEMENT ROUTES
+# ============================================================================
+
+@admin_bp.route('/testimonials')
+@admin_required
+def testimonials():
+    """Manage testimonials"""
+    from app.models.website_content_models import Testimonial
+    testimonials = Testimonial.query.order_by(Testimonial.display_order, Testimonial.created_at.desc()).all()
+    return render_template('admin/website_content/testimonials.html', testimonials=testimonials)
+
+@admin_bp.route('/testimonials/create', methods=['POST'])
+@admin_required
+def create_testimonial():
+    """Create new testimonial"""
+    from app.models.website_content_models import Testimonial
+    user = get_current_admin_user()
+
+    testimonial = Testimonial(
+        customer_name=request.form.get('customer_name'),
+        customer_role=request.form.get('customer_role'),
+        company_name=request.form.get('company_name'),
+        message=request.form.get('message'),
+        rating=int(request.form.get('rating', 5)),
+        avatar_url=request.form.get('avatar_url'),
+        is_featured=request.form.get('is_featured') == '1',
+        display_order=int(request.form.get('display_order', 0)),
+        is_active=request.form.get('is_active') == '1',
+        created_by_id=user.id
+    )
+    db.session.add(testimonial)
+    db.session.commit()
+    flash('Testimonial created successfully', 'success')
+    return redirect(url_for('admin.testimonials'))
+
+@admin_bp.route('/testimonials/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_testimonial(id):
+    """Edit testimonial"""
+    from app.models.website_content_models import Testimonial
+    testimonial = Testimonial.query.get_or_404(id)
+
+    testimonial.customer_name = request.form.get('customer_name')
+    testimonial.customer_role = request.form.get('customer_role')
+    testimonial.company_name = request.form.get('company_name')
+    testimonial.message = request.form.get('message')
+    testimonial.rating = int(request.form.get('rating', 5))
+    testimonial.avatar_url = request.form.get('avatar_url')
+    testimonial.is_featured = request.form.get('is_featured') == '1'
+    testimonial.display_order = int(request.form.get('display_order', 0))
+    testimonial.is_active = request.form.get('is_active') == '1'
+
+    db.session.commit()
+    flash('Testimonial updated successfully', 'success')
+    return redirect(url_for('admin.testimonials'))
+
+@admin_bp.route('/testimonials/<int:id>/toggle', methods=['POST'])
+@admin_required
+def toggle_testimonial(id):
+    """Toggle testimonial status"""
+    from app.models.website_content_models import Testimonial
+    testimonial = Testimonial.query.get_or_404(id)
+    testimonial.is_active = not testimonial.is_active
+    db.session.commit()
+    flash(f'Testimonial {"activated" if testimonial.is_active else "deactivated"}', 'success')
+    return redirect(url_for('admin.testimonials'))
+
+@admin_bp.route('/testimonials/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_testimonial(id):
+    """Delete testimonial"""
+    from app.models.website_content_models import Testimonial
+    testimonial = Testimonial.query.get_or_404(id)
+    db.session.delete(testimonial)
+    db.session.commit()
+    flash('Testimonial deleted successfully', 'success')
+    return redirect(url_for('admin.testimonials'))
+
+# ============================================================================
+# HOW IT WORKS MANAGEMENT ROUTES
+# ============================================================================
+
+@admin_bp.route('/how-it-works')
+@admin_required
+def how_it_works():
+    """Manage how it works steps"""
+    from app.models.website_content_models import HowItWorksStep
+    steps = HowItWorksStep.query.order_by(HowItWorksStep.step_number).all()
+    return render_template('admin/website_content/how_it_works.html', steps=steps)
+
+@admin_bp.route('/how-it-works/create', methods=['POST'])
+@admin_required
+def create_how_it_works_step():
+    """Create new how it works step"""
+    from app.models.website_content_models import HowItWorksStep
+    user = get_current_admin_user()
+
+    step = HowItWorksStep(
+        step_number=int(request.form.get('step_number', 1)),
+        title=request.form.get('title'),
+        description=request.form.get('description'),
+        icon=request.form.get('icon'),
+        is_active=request.form.get('is_active') == '1',
+        created_by_id=user.id
+    )
+    db.session.add(step)
+    db.session.commit()
+    flash('Step created successfully', 'success')
+    return redirect(url_for('admin.how_it_works'))
+
+@admin_bp.route('/how-it-works/<int:id>/edit', methods=['POST'])
+@admin_required
+def edit_how_it_works_step(id):
+    """Edit how it works step"""
+    from app.models.website_content_models import HowItWorksStep
+    step = HowItWorksStep.query.get_or_404(id)
+
+    step.step_number = int(request.form.get('step_number', 1))
+    step.title = request.form.get('title')
+    step.description = request.form.get('description')
+    step.icon = request.form.get('icon')
+    step.is_active = request.form.get('is_active') == '1'
+
+    db.session.commit()
+    flash('Step updated successfully', 'success')
+    return redirect(url_for('admin.how_it_works'))
+
+@admin_bp.route('/how-it-works/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_how_it_works_step(id):
+    """Delete how it works step"""
+    from app.models.website_content_models import HowItWorksStep
+    step = HowItWorksStep.query.get_or_404(id)
+    db.session.delete(step)
+    db.session.commit()
+    flash('Step deleted successfully', 'success')
+    return redirect(url_for('admin.how_it_works'))
 
 @admin_bp.route('/restaurants')
 @permission_required('restaurants')
@@ -1512,7 +2049,12 @@ def registrations():
 @admin_required
 def registration_detail(request_id):
     """View detailed registration request"""
+    from app.models.website_content_models import PricingPlan
+
     reg_request = RegistrationRequest.query.get_or_404(request_id)
+
+    # Get active pricing plans for dropdown
+    pricing_plans = PricingPlan.query.filter_by(is_active=True).order_by(PricingPlan.display_order).all()
 
     # Log view action
     moderator_id = session.get('admin_user_id')
@@ -1526,7 +2068,9 @@ def registration_detail(request_id):
     db.session.add(log)
     db.session.commit()
 
-    return render_template('admin/registration_detail.html', request=reg_request)
+    return render_template('admin/registration_detail.html',
+                         request=reg_request,
+                         pricing_plans=pricing_plans)
 
 
 @admin_bp.route('/registrations/<int:request_id>/assign', methods=['POST'])
@@ -1809,9 +2353,22 @@ def media_theme():
     """Media and theme management page"""
     from app.models.website_media_models import WebsiteMedia, WebsiteTheme, WebsiteBanner
 
-    theme = WebsiteTheme.query.filter_by(is_active=True).first()
-    media_items = WebsiteMedia.query.order_by(WebsiteMedia.created_at.desc()).all()
-    banners = WebsiteBanner.query.order_by(WebsiteBanner.display_order).all()
+    try:
+        theme = WebsiteTheme.query.filter_by(is_active=True).first()
+    except Exception as e:
+        # Table doesn't exist yet
+        theme = None
+        flash('Website theme feature is not yet configured. Database migration may be required.', 'warning')
+
+    try:
+        media_items = WebsiteMedia.query.order_by(WebsiteMedia.created_at.desc()).all()
+    except:
+        media_items = []
+
+    try:
+        banners = WebsiteBanner.query.order_by(WebsiteBanner.display_order).all()
+    except:
+        banners = []
 
     return render_template('admin/media_theme.html',
         theme=theme,
@@ -1827,7 +2384,12 @@ def save_theme():
     from app.models.website_media_models import WebsiteTheme
 
     user = get_current_admin_user()
-    theme = WebsiteTheme.query.filter_by(is_active=True).first()
+
+    try:
+        theme = WebsiteTheme.query.filter_by(is_active=True).first()
+    except Exception as e:
+        flash('Website theme feature is not available. Database tables may need to be created.', 'error')
+        return redirect(url_for('admin.dashboard'))
 
     if not theme:
         theme = WebsiteTheme(name='Default Theme', is_active=True, created_by_id=user.id)
@@ -1955,9 +2517,13 @@ def get_active_theme():
     """Get active theme settings (public API)"""
     from app.models.website_media_models import WebsiteTheme
 
-    theme = WebsiteTheme.query.filter_by(is_active=True).first()
-    if theme:
-        return jsonify({'success': True, 'data': theme.to_dict()})
+    try:
+        theme = WebsiteTheme.query.filter_by(is_active=True).first()
+        if theme:
+            return jsonify({'success': True, 'data': theme.to_dict()})
+    except Exception as e:
+        # Table doesn't exist, return default theme
+        pass
 
     return jsonify({
         'success': True,

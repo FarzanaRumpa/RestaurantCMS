@@ -199,8 +199,20 @@
             </div>
             <div class="nav-section">
                 <div class="nav-section-title">Displays</div>
+                {% if restaurant.has_feature('kitchen_display') %}
                 <a href="{{ url_for('owner.kitchen_screen') }}" class="nav-item" target="_blank"><i class="bi bi-fire"></i>Kitchen Screen</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>Kitchen Screen 🔒</a>
+                {% endif %}
+                {% if restaurant.has_feature('customer_display') %}
                 <a href="/{{ restaurant.id }}/customer-screen" class="nav-item" target="_blank"><i class="bi bi-display"></i>Customer Display</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>Customer Display 🔒</a>
+                {% endif %}
+                <a href="/menu/{{ restaurant.public_id }}" class="nav-item" target="_blank">
+                    <i class="bi bi-phone"></i>
+                    Public Menu
+                </a>
             </div>
             <div class="nav-section">
                 <div class="nav-section-title">Account</div>

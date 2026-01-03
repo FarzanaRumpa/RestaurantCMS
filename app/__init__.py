@@ -39,6 +39,7 @@ def create_app(config_class=Config):
     from app.routes.registration import registration_bp
     from app.routes.public_content_api import public_content_api  # Public website content API
     from app.routes.website_content_api import website_content_api  # Admin content management API
+    from app.routes.public_admin import public_admin_bp  # Public admin routes
 
     csrf.exempt(auth_bp)
     csrf.exempt(restaurants_bp)
@@ -51,14 +52,15 @@ def create_app(config_class=Config):
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/rock')
+    app.register_blueprint(public_admin_bp, url_prefix='/rock/public')  # Public admin routes
     app.register_blueprint(owner_bp, url_prefix='')
     app.register_blueprint(restaurants_bp, url_prefix='/api/restaurants')
     app.register_blueprint(menu_bp, url_prefix='/api/menu')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
     app.register_blueprint(public_bp)
     app.register_blueprint(registration_bp, url_prefix='/api/registration')
-    app.register_blueprint(public_content_api, url_prefix='/api')  # Public content API
-    app.register_blueprint(website_content_api, url_prefix='/api')  # Admin content API
+    app.register_blueprint(public_content_api)  # Public content API (has /api/public prefix)
+    app.register_blueprint(website_content_api)  # Admin content API (has /api/website-content prefix)
 
     from app.models import User, Restaurant, Table, Category, MenuItem, Order, OrderItem, RegistrationRequest, ModerationLog
 
@@ -82,12 +84,17 @@ def create_app(config_class=Config):
     # Context processor to inject admin user, permissions, and pending registrations
     @app.context_processor
     def inject_admin_context():
-        from flask import session
+        from flask import session, has_request_context
+
         context = {
             'pending_registrations_count': 0,
             'admin_user': None,
             'has_permission': lambda p: False
         }
+
+        # Only access session if we're in a request context
+        if not has_request_context():
+            return context
 
         if session.get('admin_logged_in') and session.get('admin_user_id'):
             admin_user = User.query.get(session.get('admin_user_id'))

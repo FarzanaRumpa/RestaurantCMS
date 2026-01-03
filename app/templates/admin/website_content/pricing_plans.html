@@ -1,0 +1,1269 @@
+{% extends "admin/base.html" %}
+{% block title %}Pricing Plans{% endblock %}
+{% block content %}
+<!-- COMPREHENSIVE PRICING PLANS V3.0 - REDESIGNED - Jan 3, 2026 -->
+<style>
+    /* Modern Modal Styling */
+    .modal-xl { max-width: 95%; }
+    .modal-content { border: none; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 16px 16px 0 0;
+        padding: 1.5rem 2rem;
+        border-bottom: none;
+    }
+    .modal-title { font-weight: 600; font-size: 1.5rem; }
+    .btn-close { filter: brightness(0) invert(1); }
+    .modal-body { padding: 0; }
+    .modal-footer { border-top: 1px solid #e9ecef; padding: 1.5rem 2rem; background: #f8f9fa; border-radius: 0 0 16px 16px; }
+
+    /* Modern Tab Design */
+    .nav-tabs {
+        background: #f8f9fa;
+        border-bottom: none;
+        padding: 0.5rem 2rem 0 2rem;
+        margin-bottom: 0;
+    }
+    .nav-tabs .nav-link {
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        margin-right: 0.5rem;
+        border-radius: 8px 8px 0 0;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    .nav-tabs .nav-link:hover {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border-color: transparent;
+    }
+    .nav-tabs .nav-link.active {
+        background: white;
+        color: #667eea;
+        font-weight: 600;
+        border-color: transparent;
+        box-shadow: 0 -2px 8px rgba(102, 126, 234, 0.2);
+    }
+    .nav-tabs .nav-link.active::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 2px 2px 0 0;
+    }
+
+    /* Tab Content */
+    .tab-content { padding: 2rem; background: white; }
+    .tab-pane { min-height: 400px; }
+
+    /* Form Styling */
+    .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .form-control, .form-select {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .input-group-text {
+        background: #f3f4f6;
+        border: 2px solid #e5e7eb;
+        border-right: none;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    /* Feature Categories */
+    .feature-category {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .feature-category h6 {
+        margin-bottom: 1rem;
+        color: #1e293b;
+        font-weight: 700;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    .feature-category h6 i {
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    /* Feature Toggles */
+    .feature-toggle {
+        margin-bottom: 0.75rem;
+        padding: 0.5rem;
+        border-radius: 6px;
+        transition: background 0.2s ease;
+    }
+    .feature-toggle:hover {
+        background: rgba(102, 126, 234, 0.05);
+    }
+    .feature-toggle .form-check-label {
+        font-size: 0.9rem;
+        color: #374151;
+        font-weight: 500;
+        cursor: pointer;
+        margin-left: 0.5rem;
+    }
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    .form-check-input:focus {
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    /* Tier Pricing */
+    .tier-pricing input { max-width: 140px; }
+    .tier-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    /* Info Alert */
+    .alert-info {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border: 1px solid #93c5fd;
+        color: #1e40af;
+        border-radius: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3);
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    .btn-secondary {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        color: #6c757d;
+    }
+    .btn-secondary:hover {
+        background: #e9ecef;
+        border-color: #dee2e6;
+        color: #495057;
+    }
+
+    /* Section Dividers */
+    hr {
+        border: none;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #e9ecef, transparent);
+        margin: 1.5rem 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .modal-xl { max-width: 98%; margin: 0.5rem; }
+        .tab-content { padding: 1rem; }
+        .feature-category { padding: 1rem; }
+        .nav-tabs { padding: 0.5rem 1rem 0 1rem; }
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1 fw-bold" style="color: #1e293b;">
+            <i class="bi bi-tag-fill me-3" style="color: #667eea;"></i>Pricing Plans
+        </h2>
+        <p class="text-muted mb-0">Manage SaaS pricing with country-tier pricing, features & limits</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.payment_gateways') }}" class="btn btn-outline-success me-2">
+            <i class="bi bi-credit-card-2-front me-2"></i>Payment Gateways
+        </a>
+        <a href="{{ url_for('public_admin.index') }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left me-2"></i>Back
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal" style="box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3);">
+            <i class="bi bi-plus-lg me-2"></i>Add Pricing Plan
+        </button>
+    </div>
+</div>
+
+<!-- Modern Country Tier Legend with All Countries -->
+<div class="card border-0 mb-4" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #667eea !important;">
+    <div class="card-body">
+        <h6 class="card-title mb-3" style="color: #1e40af; font-weight: 700;">
+            <i class="bi bi-globe-americas me-2" style="color: #667eea;"></i>
+            Country-Based Pricing Tiers (4-Tier System) - {{ countries_by_tier.tier1|length + countries_by_tier.tier2|length + countries_by_tier.tier3|length + countries_by_tier.tier4|length }} Countries
+        </h6>
+        <div class="row">
+            <!-- Tier 1 - Premium -->
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="p-3 rounded-3" style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22c55e;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-success me-2">T1</span>
+                            <strong style="color: #15803d;">Premium ({{ countries_by_tier.tier1|length }})</strong>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#tier1Countries" style="color: #15803d;">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted d-block">Base price - Developed countries</small>
+                    <div class="collapse mt-2" id="tier1Countries">
+                        <div style="max-height: 200px; overflow-y: auto; font-size: 11px;">
+                            {% for c in countries_by_tier.tier1 %}
+                            <span class="badge bg-light text-dark me-1 mb-1">{{ c.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tier 2 - Standard -->
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="p-3 rounded-3" style="background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-primary me-2">T2</span>
+                            <strong style="color: #1d4ed8;">Standard ({{ countries_by_tier.tier2|length }})</strong>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#tier2Countries" style="color: #1d4ed8;">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted d-block">20% off - Upper-middle income</small>
+                    <div class="collapse mt-2" id="tier2Countries">
+                        <div style="max-height: 200px; overflow-y: auto; font-size: 11px;">
+                            {% for c in countries_by_tier.tier2 %}
+                            <span class="badge bg-light text-dark me-1 mb-1">{{ c.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tier 3 - Economy -->
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="p-3 rounded-3" style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-warning text-dark me-2">T3</span>
+                            <strong style="color: #d97706;">Economy ({{ countries_by_tier.tier3|length }})</strong>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#tier3Countries" style="color: #d97706;">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted d-block">40% off - Developing countries</small>
+                    <div class="collapse mt-2" id="tier3Countries">
+                        <div style="max-height: 200px; overflow-y: auto; font-size: 11px;">
+                            {% for c in countries_by_tier.tier3 %}
+                            <span class="badge bg-light text-dark me-1 mb-1">{{ c.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tier 4 - Budget -->
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="p-3 rounded-3" style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444;">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-danger me-2">T4</span>
+                            <strong style="color: #dc2626;">Budget ({{ countries_by_tier.tier4|length }})</strong>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#tier4Countries" style="color: #dc2626;">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted d-block">60% off - Low income countries</small>
+                    <div class="collapse mt-2" id="tier4Countries">
+                        <div style="max-height: 200px; overflow-y: auto; font-size: 11px;">
+                            {% for c in countries_by_tier.tier4 %}
+                            <span class="badge bg-light text-dark me-1 mb-1">{{ c.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3 p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+            <small class="text-muted d-flex align-items-center">
+                <i class="bi bi-info-circle me-2" style="color: #667eea;"></i>
+                <span>Set different prices for each tier when creating a plan. System automatically detects customer's country and applies appropriate pricing.</span>
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Modern Pricing Plans List -->
+<div class="row g-4">
+    {% for item in plans_data %}
+    {% set plan = item.plan %}
+    {% set features_list = item.features_list %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 border-0 {% if plan.is_highlighted %}position-relative overflow-hidden{% endif %}"
+             style="border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); transition: all 0.3s ease;"
+             onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 35px rgba(0,0,0,0.12)'"
+             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.08)'">
+
+            {% if plan.is_highlighted %}
+            <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+            {% endif %}
+
+            <div class="card-body p-4">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="flex-grow-1">
+                        {% if plan.badge_text %}
+                        <span class="badge mb-2 px-3 py-2 fw-bold" style="background: linear-gradient(135deg, #f59e0b, #f97316); color: white; border-radius: 20px; font-size: 0.7rem;">
+                            {{ plan.badge_text }}
+                        </span>
+                        {% elif plan.is_highlighted %}
+                        <span class="badge mb-2 px-3 py-2 fw-bold" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 20px; font-size: 0.7rem;">
+                            ✨ FEATURED
+                        </span>
+                        {% endif %}
+                        <h4 class="card-title mb-2 fw-bold" style="color: #1e293b;">{{ plan.name }}</h4>
+                        {% if plan.description %}
+                        <p class="text-muted small mb-0" style="line-height: 1.4;">{{ plan.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        <span class="badge px-3 py-2 fw-bold" style="{% if plan.is_active %}background: linear-gradient(135deg, #22c55e, #16a34a); color: white;{% else %}background: #f1f5f9; color: #64748b;{% endif %} border-radius: 20px; font-size: 0.7rem;">
+                            {{ 'ACTIVE' if plan.is_active else 'INACTIVE' }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Pricing Section -->
+                <div class="mb-4">
+                    <div class="d-flex align-items-baseline mb-2">
+                        <h2 class="mb-0 fw-bold" style="color: #667eea; font-size: 2.5rem;">${{ plan.price }}</h2>
+                        <span class="ms-2 text-muted fw-medium">/{{ plan.price_period }}</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-primary px-3 py-2 me-2" style="border-radius: 8px; font-size: 0.7rem;">BASE PRICE</span>
+                        <small class="text-muted">Tier 1 Countries</small>
+                    </div>
+
+                    {% if plan.price_tier2 or plan.price_tier3 or plan.price_tier4 %}
+                    <div class="row g-2">
+                        {% if plan.price_tier2 %}
+                        <div class="col-6">
+                            <div class="p-2 rounded-3 text-center" style="background: rgba(59, 130, 246, 0.1);">
+                                <small class="text-muted d-block">Tier 2</small>
+                                <span class="fw-bold" style="color: #3b82f6;">${{ plan.price_tier2 }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.price_tier3 %}
+                        <div class="col-6">
+                            <div class="p-2 rounded-3 text-center" style="background: rgba(245, 158, 11, 0.1);">
+                                <small class="text-muted d-block">Tier 3</small>
+                                <span class="fw-bold" style="color: #f59e0b;">${{ plan.price_tier3 }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.price_tier4 %}
+                        <div class="col-12">
+                            <div class="p-2 rounded-3 text-center" style="background: rgba(239, 68, 68, 0.1);">
+                                <small class="text-muted d-block">Tier 4</small>
+                                <span class="fw-bold" style="color: #ef4444;">${{ plan.price_tier4 }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Limits Summary -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3" style="color: #374151;">Usage Limits</h6>
+                    <div class="row g-2 small">
+                        <div class="col-6">
+                            <div class="d-flex align-items-center p-2 rounded-3" style="background: #f8fafc;">
+                                <i class="bi bi-table me-2 text-primary"></i>
+                                <span>{{ plan.max_tables or '∞' }} Tables</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center p-2 rounded-3" style="background: #f8fafc;">
+                                <i class="bi bi-menu-up me-2 text-success"></i>
+                                <span>{{ plan.max_menu_items or '∞' }} Items</span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex align-items-center p-2 rounded-3" style="background: #f8fafc;">
+                                <i class="bi bi-cart-check me-2 text-warning"></i>
+                                <span>{{ plan.max_orders_per_month or '∞' }} Orders/Month</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Features -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3" style="color: #374151;">Key Features</h6>
+                    <div class="row g-2 small">
+                        {% if plan.has_kitchen_display %}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>Kitchen Display System</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.has_customer_display %}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>Customer Display</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.has_advanced_analytics %}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>Advanced Analytics</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.has_api_access %}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>API Access</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.has_white_label %}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>White Label Solution</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if plan.has_priority_support %}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                <span>Priority Support</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Display Features -->
+                {% if features_list %}
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-3" style="color: #374151;">Display Features</h6>
+                    <div class="feature-tags">
+                        {% for feature in features_list[:3] %}
+                        <span class="badge me-1 mb-2 px-3 py-2" style="background: #f1f5f9; color: #64748b; border-radius: 8px; font-weight: 500;">
+                            <i class="bi bi-check2 me-1" style="color: #22c55e;"></i>{{ feature }}
+                        </span>
+                        {% endfor %}
+                        {% if features_list|length > 3 %}
+                        <span class="badge me-1 mb-2 px-3 py-2" style="background: #667eea; color: white; border-radius: 8px;">
+                            +{{ features_list|length - 3 }} more
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Card Footer -->
+            <div class="card-footer bg-transparent border-0 p-4 pt-0">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm flex-grow-1 edit-btn"
+                            style="border-radius: 8px; border-color: #667eea; color: #667eea;"
+                            data-bs-toggle="modal" data-bs-target="#editModal"
+                            data-id="{{ plan.id }}"
+                            data-name="{{ plan.name }}"
+                            data-description="{{ plan.description or '' }}"
+                            data-price="{{ plan.price }}"
+                            data-price-tier2="{{ plan.price_tier2 or '' }}"
+                            data-price-tier3="{{ plan.price_tier3 or '' }}"
+                            data-price-tier4="{{ plan.price_tier4 or '' }}"
+                            data-period="{{ plan.price_period }}"
+                            data-currency="{{ plan.currency }}"
+                            data-features="{{ plan.features or '[]' }}"
+                            data-highlighted="{{ plan.is_highlighted }}"
+                            data-active="{{ plan.is_active }}"
+                            data-order="{{ plan.display_order }}"
+                            data-badge-text="{{ plan.badge_text or '' }}"
+                            data-cta-text="{{ plan.cta_text }}"
+                            data-cta-link="{{ plan.cta_link }}"
+                            data-max-tables="{{ plan.max_tables or '' }}"
+                            data-max-categories="{{ plan.max_categories or '' }}"
+                            data-max-restaurants="{{ plan.max_restaurants or '' }}"
+                            data-max-items="{{ plan.max_menu_items or '' }}"
+                            data-max-orders="{{ plan.max_orders_per_month or '' }}"
+                            data-max-staff="{{ plan.max_staff_accounts or '' }}"
+                            data-has-kitchen-display="{{ plan.has_kitchen_display }}"
+                            data-has-customer-display="{{ plan.has_customer_display }}"
+                            data-has-owner-dashboard="{{ plan.has_owner_dashboard }}"
+                            data-has-advanced-analytics="{{ plan.has_advanced_analytics }}"
+                            data-has-qr-ordering="{{ plan.has_qr_ordering }}"
+                            data-has-table-management="{{ plan.has_table_management }}"
+                            data-has-order-history="{{ plan.has_order_history }}"
+                            data-has-customer-feedback="{{ plan.has_customer_feedback }}"
+                            data-has-inventory-management="{{ plan.has_inventory_management }}"
+                            data-has-staff-management="{{ plan.has_staff_management }}"
+                            data-has-multi-language="{{ plan.has_multi_language }}"
+                            data-has-custom-branding="{{ plan.has_custom_branding }}"
+                            data-has-email-notifications="{{ plan.has_email_notifications }}"
+                            data-has-sms-notifications="{{ plan.has_sms_notifications }}"
+                            data-has-api-access="{{ plan.has_api_access }}"
+                            data-has-priority-support="{{ plan.has_priority_support }}"
+                            data-has-white-label="{{ plan.has_white_label }}"
+                            data-has-reports-export="{{ plan.has_reports_export }}"
+                            data-has-pos-integration="{{ plan.has_pos_integration }}"
+                            data-has-payment-integration="{{ plan.has_payment_integration }}">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </button>
+
+                    <form method="POST" action="{{ url_for('admin.toggle_pricing_plan', id=plan.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm" style="border-radius: 8px; {% if plan.is_active %}background: #fef3c7; border: 1px solid #f59e0b; color: #f59e0b;{% else %}background: #dcfce7; border: 1px solid #22c55e; color: #22c55e;{% endif %}">
+                            <i class="bi bi-{% if plan.is_active %}pause{% else %}play{% endif %} me-1"></i>
+                            {{ 'Pause' if plan.is_active else 'Activate' }}
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('admin.delete_pricing_plan', id=plan.id) }}"
+                          onsubmit="return confirm('Delete this pricing plan?')" class="d-inline">
+                        <button type="submit" class="btn btn-outline-danger btn-sm" style="border-radius: 8px;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not plans_data %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <div class="mb-4">
+                <i class="bi bi-tags" style="font-size: 4rem; color: #d1d5db;"></i>
+            </div>
+            <h4 style="color: #374151;">No pricing plans yet</h4>
+            <p class="text-muted mb-4">Create your first pricing plan to get started with country-tier pricing</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal" style="border-radius: 12px; padding: 0.75rem 2rem;">
+                <i class="bi bi-plus-lg me-2"></i>Create First Plan
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.create_pricing_plan') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Pricing Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#createBasic">Basic Info</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createPricing">Pricing</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createLimits">Limits</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createFeaturesTab">Features</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="createBasic">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="createName">Plan Name *</label>
+                                    <input type="text" class="form-control" id="createName" name="name" required placeholder="e.g., Professional">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="createOrder">Display Order</label>
+                                    <input type="number" class="form-control" id="createOrder" name="display_order" value="0">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="createBadgeText">Badge Text</label>
+                                    <input type="text" class="form-control" id="createBadgeText" name="badge_text" placeholder="Most Popular">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="createDescription">Description</label>
+                                    <input type="text" class="form-control" id="createDescription" name="description" placeholder="For growing businesses">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="createCtaText">CTA Button Text</label>
+                                    <input type="text" class="form-control" id="createCtaText" name="cta_text" value="Get Started">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="createCtaLink">CTA Link</label>
+                                    <input type="text" class="form-control" id="createCtaLink" name="cta_link" value="/owner/login">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="createFeaturesText">Display Features (one per line)</label>
+                                    <textarea class="form-control" rows="4" id="createFeaturesText" placeholder="Unlimited menu items&#10;Priority support&#10;Advanced analytics"></textarea>
+                                    <div id="createFeaturesInputs"></div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_highlighted" value="1" id="createHighlighted">
+                                        <label class="form-check-label" for="createHighlighted">Featured/Highlighted Plan</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_active" value="1" id="createActive" checked>
+                                        <label class="form-check-label" for="createActive">Active</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pricing Tab -->
+                        <div class="tab-pane fade" id="createPricing">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createCurrency">Currency</label>
+                                    <select class="form-select" id="createCurrency" name="currency">
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                        <option value="AUD">AUD (A$)</option>
+                                        <option value="CAD">CAD (C$)</option>
+                                        <option value="SGD">SGD (S$)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createPeriod">Billing Period</label>
+                                    <select class="form-select" id="createPeriod" name="price_period">
+                                        <option value="month">Monthly</option>
+                                        <option value="year">Yearly</option>
+                                        <option value="one-time">One-time</option>
+                                    </select>
+                                </div>
+                                <div class="col-12"><hr></div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="createPrice">Tier 1 Price * <small class="text-muted">(US, UK, AU)</small></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" id="createPrice" name="price" required value="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="createPriceTier2">Tier 2 Price <small class="text-muted">(UAE, SA)</small></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" id="createPriceTier2" name="price_tier2">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="createPriceTier3">Tier 3 Price <small class="text-muted">(IN, BD, PK)</small></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" id="createPriceTier3" name="price_tier3">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="createPriceTier4">Tier 4 Price <small class="text-muted">(Africa)</small></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" id="createPriceTier4" name="price_tier4">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Limits Tab -->
+                        <div class="tab-pane fade" id="createLimits">
+                            <p class="text-muted mb-3">Leave empty for unlimited</p>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxTables">Max Tables</label>
+                                    <input type="number" class="form-control" id="createMaxTables" name="max_tables" placeholder="Unlimited">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxItems">Max Menu Items</label>
+                                    <input type="number" class="form-control" id="createMaxItems" name="max_menu_items" placeholder="Unlimited">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxCategories">Max Categories</label>
+                                    <input type="number" class="form-control" id="createMaxCategories" name="max_categories" placeholder="Unlimited">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxOrders">Max Orders/Month</label>
+                                    <input type="number" class="form-control" id="createMaxOrders" name="max_orders_per_month" placeholder="Unlimited">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxRestaurants">Max Restaurants</label>
+                                    <input type="number" class="form-control" id="createMaxRestaurants" name="max_restaurants" placeholder="Unlimited">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxStaff">Max Staff Accounts</label>
+                                    <input type="number" class="form-control" id="createMaxStaff" name="max_staff_accounts" placeholder="Unlimited">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Features Tab -->
+                        <div class="tab-pane fade" id="createFeaturesTab">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-display me-2"></i>Display</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_kitchen_display" value="1" id="c_kitchen">
+                                            <label class="form-check-label" for="c_kitchen">Kitchen Display</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_customer_display" value="1" id="c_customer">
+                                            <label class="form-check-label" for="c_customer">Customer Display</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_owner_dashboard" value="1" id="c_owner" checked>
+                                            <label class="form-check-label" for="c_owner">Owner Dashboard</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-cart me-2"></i>Ordering</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_qr_ordering" value="1" id="c_qr" checked>
+                                            <label class="form-check-label" for="c_qr">QR Ordering</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_table_management" value="1" id="c_table" checked>
+                                            <label class="form-check-label" for="c_table">Table Management</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_order_history" value="1" id="c_history" checked>
+                                            <label class="form-check-label" for="c_history">Order History</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-graph-up me-2"></i>Analytics</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_advanced_analytics" value="1" id="c_analytics">
+                                            <label class="form-check-label" for="c_analytics">Advanced Analytics</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_reports_export" value="1" id="c_reports">
+                                            <label class="form-check-label" for="c_reports">Reports Export</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-people me-2"></i>Management</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_staff_management" value="1" id="c_staff">
+                                            <label class="form-check-label" for="c_staff">Staff Management</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_inventory_management" value="1" id="c_inventory">
+                                            <label class="form-check-label" for="c_inventory">Inventory Management</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_customer_feedback" value="1" id="c_feedback">
+                                            <label class="form-check-label" for="c_feedback">Customer Feedback</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-bell me-2"></i>Notifications</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_email_notifications" value="1" id="c_email" checked>
+                                            <label class="form-check-label" for="c_email">Email Notifications</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_sms_notifications" value="1" id="c_sms">
+                                            <label class="form-check-label" for="c_sms">SMS Notifications</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-gear me-2"></i>Advanced</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_custom_branding" value="1" id="c_branding">
+                                            <label class="form-check-label" for="c_branding">Custom Branding</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_multi_language" value="1" id="c_lang">
+                                            <label class="form-check-label" for="c_lang">Multi-Language</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_api_access" value="1" id="c_api">
+                                            <label class="form-check-label" for="c_api">API Access</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_white_label" value="1" id="c_white">
+                                            <label class="form-check-label" for="c_white">White Label</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-plug me-2"></i>Integrations</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_pos_integration" value="1" id="c_pos">
+                                            <label class="form-check-label" for="c_pos">POS Integration</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_payment_integration" value="1" id="c_payment">
+                                            <label class="form-check-label" for="c_payment">Payment Integration</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-headset me-2"></i>Support</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_priority_support" value="1" id="c_priority">
+                                            <label class="form-check-label" for="c_priority">Priority Support</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="POST" id="editForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Pricing Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#editBasic">Basic Info</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editPricing">Pricing</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editLimits">Limits</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editFeaturesTab">Features</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="editBasic">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="editName">Plan Name *</label>
+                                    <input type="text" class="form-control" name="name" id="editName" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="editOrder">Display Order</label>
+                                    <input type="number" class="form-control" name="display_order" id="editOrder">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="editBadgeText">Badge Text</label>
+                                    <input type="text" class="form-control" name="badge_text" id="editBadgeText">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="editDescription">Description</label>
+                                    <input type="text" class="form-control" name="description" id="editDescription">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="editCtaText">CTA Button Text</label>
+                                    <input type="text" class="form-control" name="cta_text" id="editCtaText">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="editCtaLink">CTA Link</label>
+                                    <input type="text" class="form-control" name="cta_link" id="editCtaLink">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="editFeaturesText">Display Features (one per line)</label>
+                                    <textarea class="form-control" rows="4" id="editFeaturesText"></textarea>
+                                    <div id="editFeaturesInputs"></div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_highlighted" value="1" id="editHighlighted">
+                                        <label class="form-check-label" for="editHighlighted">Featured/Highlighted Plan</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_active" value="1" id="editActive">
+                                        <label class="form-check-label" for="editActive">Active</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pricing Tab -->
+                        <div class="tab-pane fade" id="editPricing">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editCurrency">Currency</label>
+                                    <select class="form-select" name="currency" id="editCurrency">
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                        <option value="AUD">AUD (A$)</option>
+                                        <option value="CAD">CAD (C$)</option>
+                                        <option value="SGD">SGD (S$)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editPeriod">Billing Period</label>
+                                    <select class="form-select" name="price_period" id="editPeriod">
+                                        <option value="month">Monthly</option>
+                                        <option value="year">Yearly</option>
+                                        <option value="one-time">One-time</option>
+                                    </select>
+                                </div>
+                                <div class="col-12"><hr></div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="editPrice">Tier 1 Price *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" name="price" id="editPrice" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="editPriceTier2">Tier 2 Price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" name="price_tier2" id="editPriceTier2">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="editPriceTier3">Tier 3 Price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" name="price_tier3" id="editPriceTier3">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="editPriceTier4">Tier 4 Price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" name="price_tier4" id="editPriceTier4">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Limits Tab -->
+                        <div class="tab-pane fade" id="editLimits">
+                            <p class="text-muted mb-3">Leave empty for unlimited</p>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxTables">Max Tables</label>
+                                    <input type="number" class="form-control" name="max_tables" id="editMaxTables">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxItems">Max Menu Items</label>
+                                    <input type="number" class="form-control" name="max_menu_items" id="editMaxItems">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxCategories">Max Categories</label>
+                                    <input type="number" class="form-control" name="max_categories" id="editMaxCategories">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxOrders">Max Orders/Month</label>
+                                    <input type="number" class="form-control" name="max_orders_per_month" id="editMaxOrders">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxRestaurants">Max Restaurants</label>
+                                    <input type="number" class="form-control" name="max_restaurants" id="editMaxRestaurants">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxStaff">Max Staff Accounts</label>
+                                    <input type="number" class="form-control" name="max_staff_accounts" id="editMaxStaff">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Features Tab -->
+                        <div class="tab-pane fade" id="editFeaturesTab">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-display me-2"></i>Display</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_kitchen_display" value="1" id="e_kitchen">
+                                            <label class="form-check-label" for="e_kitchen">Kitchen Display</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_customer_display" value="1" id="e_customer">
+                                            <label class="form-check-label" for="e_customer">Customer Display</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_owner_dashboard" value="1" id="e_owner">
+                                            <label class="form-check-label" for="e_owner">Owner Dashboard</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-cart me-2"></i>Ordering</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_qr_ordering" value="1" id="e_qr">
+                                            <label class="form-check-label" for="e_qr">QR Ordering</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_table_management" value="1" id="e_table">
+                                            <label class="form-check-label" for="e_table">Table Management</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_order_history" value="1" id="e_history">
+                                            <label class="form-check-label" for="e_history">Order History</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-graph-up me-2"></i>Analytics</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_advanced_analytics" value="1" id="e_analytics">
+                                            <label class="form-check-label" for="e_analytics">Advanced Analytics</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_reports_export" value="1" id="e_reports">
+                                            <label class="form-check-label" for="e_reports">Reports Export</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-people me-2"></i>Management</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_staff_management" value="1" id="e_staff">
+                                            <label class="form-check-label" for="e_staff">Staff Management</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_inventory_management" value="1" id="e_inventory">
+                                            <label class="form-check-label" for="e_inventory">Inventory Management</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_customer_feedback" value="1" id="e_feedback">
+                                            <label class="form-check-label" for="e_feedback">Customer Feedback</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-bell me-2"></i>Notifications</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_email_notifications" value="1" id="e_email">
+                                            <label class="form-check-label" for="e_email">Email Notifications</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_sms_notifications" value="1" id="e_sms">
+                                            <label class="form-check-label" for="e_sms">SMS Notifications</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-gear me-2"></i>Advanced</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_custom_branding" value="1" id="e_branding">
+                                            <label class="form-check-label" for="e_branding">Custom Branding</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_multi_language" value="1" id="e_lang">
+                                            <label class="form-check-label" for="e_lang">Multi-Language</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_api_access" value="1" id="e_api">
+                                            <label class="form-check-label" for="e_api">API Access</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_white_label" value="1" id="e_white">
+                                            <label class="form-check-label" for="e_white">White Label</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-plug me-2"></i>Integrations</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_pos_integration" value="1" id="e_pos">
+                                            <label class="form-check-label" for="e_pos">POS Integration</label>
+                                        </div>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_payment_integration" value="1" id="e_payment">
+                                            <label class="form-check-label" for="e_payment">Payment Integration</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="feature-category">
+                                        <h6><i class="bi bi-headset me-2"></i>Support</h6>
+                                        <div class="form-check form-switch feature-toggle">
+                                            <input class="form-check-input" type="checkbox" name="has_priority_support" value="1" id="e_priority">
+                                            <label class="form-check-label" for="e_priority">Priority Support</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle features textarea for create
+document.getElementById('createFeaturesText').addEventListener('input', function() {
+    const lines = this.value.split('\n').filter(l => l.trim());
+    const container = document.getElementById('createFeaturesInputs');
+    container.innerHTML = '';
+    lines.forEach(line => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'features[]';
+        input.value = line.trim();
+        container.appendChild(input);
+    });
+});
+
+// Handle features textarea for edit
+document.getElementById('editFeaturesText').addEventListener('input', function() {
+    const lines = this.value.split('\n').filter(l => l.trim());
+    const container = document.getElementById('editFeaturesInputs');
+    container.innerHTML = '';
+    lines.forEach(line => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'features[]';
+        input.value = line.trim();
+        container.appendChild(input);
+    });
+});
+
+// Handle edit button click
+document.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        document.getElementById('editForm').action = `/rock/pricing-plans/${id}/edit`;
+
+        // Basic info
+        document.getElementById('editName').value = this.dataset.name;
+        document.getElementById('editDescription').value = this.dataset.description;
+        document.getElementById('editOrder').value = this.dataset.order;
+        document.getElementById('editBadgeText').value = this.dataset.badgeText || '';
+        document.getElementById('editCtaText').value = this.dataset.ctaText;
+        document.getElementById('editCtaLink').value = this.dataset.ctaLink;
+        document.getElementById('editHighlighted').checked = this.dataset.highlighted === 'True';
+        document.getElementById('editActive').checked = this.dataset.active === 'True';
+
+        // Pricing
+        document.getElementById('editPrice').value = this.dataset.price;
+        document.getElementById('editPriceTier2').value = this.dataset.priceTier2 || '';
+        document.getElementById('editPriceTier3').value = this.dataset.priceTier3 || '';
+        document.getElementById('editPriceTier4').value = this.dataset.priceTier4 || '';
+        document.getElementById('editPeriod').value = this.dataset.period;
+        document.getElementById('editCurrency').value = this.dataset.currency;
+
+        // Limits
+        document.getElementById('editMaxTables').value = this.dataset.maxTables || '';
+        document.getElementById('editMaxCategories').value = this.dataset.maxCategories || '';
+        document.getElementById('editMaxRestaurants').value = this.dataset.maxRestaurants || '';
+        document.getElementById('editMaxItems').value = this.dataset.maxItems || '';
+        document.getElementById('editMaxOrders').value = this.dataset.maxOrders || '';
+        document.getElementById('editMaxStaff').value = this.dataset.maxStaff || '';
+
+        // Feature toggles
+        document.getElementById('e_kitchen').checked = this.dataset.hasKitchenDisplay === 'True';
+        document.getElementById('e_customer').checked = this.dataset.hasCustomerDisplay === 'True';
+        document.getElementById('e_owner').checked = this.dataset.hasOwnerDashboard === 'True';
+        document.getElementById('e_analytics').checked = this.dataset.hasAdvancedAnalytics === 'True';
+        document.getElementById('e_qr').checked = this.dataset.hasQrOrdering === 'True';
+        document.getElementById('e_table').checked = this.dataset.hasTableManagement === 'True';
+        document.getElementById('e_history').checked = this.dataset.hasOrderHistory === 'True';
+        document.getElementById('e_feedback').checked = this.dataset.hasCustomerFeedback === 'True';
+        document.getElementById('e_inventory').checked = this.dataset.hasInventoryManagement === 'True';
+        document.getElementById('e_staff').checked = this.dataset.hasStaffManagement === 'True';
+        document.getElementById('e_lang').checked = this.dataset.hasMultiLanguage === 'True';
+        document.getElementById('e_branding').checked = this.dataset.hasCustomBranding === 'True';
+        document.getElementById('e_email').checked = this.dataset.hasEmailNotifications === 'True';
+        document.getElementById('e_sms').checked = this.dataset.hasSmsNotifications === 'True';
+        document.getElementById('e_api').checked = this.dataset.hasApiAccess === 'True';
+        document.getElementById('e_priority').checked = this.dataset.hasPrioritySupport === 'True';
+        document.getElementById('e_white').checked = this.dataset.hasWhiteLabel === 'True';
+        document.getElementById('e_reports').checked = this.dataset.hasReportsExport === 'True';
+        document.getElementById('e_pos').checked = this.dataset.hasPosIntegration === 'True';
+        document.getElementById('e_payment').checked = this.dataset.hasPaymentIntegration === 'True';
+
+        // Parse and display features
+        try {
+            const features = JSON.parse(this.dataset.features);
+            document.getElementById('editFeaturesText').value = features.join('\n');
+            document.getElementById('editFeaturesText').dispatchEvent(new Event('input'));
+        } catch (e) {
+            document.getElementById('editFeaturesText').value = '';
+        }
+
+        new bootstrap.Modal(document.getElementById('editModal')).show();
+    });
+});
+</script>
+
+{% endblock %}
+

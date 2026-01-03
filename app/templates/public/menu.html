@@ -542,6 +542,225 @@
             opacity: 0.3;
         }
 
+        /* Modern Success Modal */
+        .order-success-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999 !important;
+            padding: 20px;
+        }
+
+        .order-success-overlay.show {
+            display: flex !important;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .success-modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px 32px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .success-checkmark {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, var(--green), #16a34a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3);
+            animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s backwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .success-checkmark i {
+            font-size: 48px;
+            color: white;
+        }
+
+        .success-modal-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--green), #16a34a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .success-modal-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .success-order-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .success-order-number,
+        .success-table-number {
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .success-order-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .success-order-value {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--accent);
+            font-family: 'Inter', monospace;
+            letter-spacing: 1px;
+        }
+
+        .success-table-number .success-order-value {
+            color: var(--green);
+        }
+
+        .success-message-text {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .success-message-text strong {
+            color: var(--text-primary);
+            display: block;
+            margin-top: 12px;
+        }
+
+        .success-modal-buttons {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+
+        .success-modal-btn {
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .success-modal-btn-primary {
+            background: linear-gradient(135deg, var(--accent), #4f46e5);
+            color: white;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .success-modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px var(--accent-glow);
+        }
+
+        .success-modal-btn-secondary {
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .success-modal-btn-secondary:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        /* Toast Notifications */
+        .toast-notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            z-index: 10000;
+            font-weight: 500;
+            font-size: 15px;
+            opacity: 0;
+            transform: translateX(400px);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 320px;
+        }
+
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast-warning {
+            border-left: 4px solid var(--orange);
+        }
+
+        .toast-error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .toast-success {
+            border-left: 4px solid var(--green);
+        }
+
+        .toast-info {
+            border-left: 4px solid var(--accent);
+        }
+
         /* Responsive */
         @media (max-width: 480px) {
             .menu-item-img,
@@ -644,7 +863,7 @@
         </div>
         <button class="cart-btn" data-bs-toggle="modal" data-bs-target="#cartModal">
             <i class="bi bi-cart3"></i>
-            View Cart · $<span id="cartTotal">0.00</span>
+            View Cart · {{ restaurant.currency_symbol or '$' }}<span id="cartTotal">0.00</span>
         </button>
     </div>
 
@@ -672,7 +891,7 @@
                 <div class="modal-footer flex-column align-items-stretch">
                     <div class="d-flex justify-content-between mb-3">
                         <span class="text-secondary">Total</span>
-                        <span class="fw-bold fs-4">$<span id="modalTotal">0.00</span></span>
+                        <span class="fw-bold fs-4">{{ restaurant.currency_symbol or '$' }}<span id="modalTotal">0.00</span></span>
                     </div>
                     <button class="order-btn" onclick="placeOrder()">
                         <i class="bi bi-check-circle"></i>
@@ -699,6 +918,45 @@
                 <button class="order-btn" onclick="location.reload()">
                     <i class="bi bi-plus-circle"></i>
                     Order More
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Success Modal -->
+    <div class="order-success-overlay" id="orderSuccessModal">
+        <div class="success-modal-content">
+            <div class="success-checkmark">
+                <i class="bi bi-check-lg"></i>
+            </div>
+            <h2 class="success-modal-title">Order Placed!</h2>
+            <p class="success-modal-subtitle">Your order has been sent to the kitchen</p>
+
+            <div class="success-order-details">
+                <div class="success-order-number">
+                    <div class="success-order-label">Order Number</div>
+                    <div class="success-order-value" id="successOrderNumber">#0000</div>
+                </div>
+                <div class="success-table-number">
+                    <div class="success-order-label">Table Number</div>
+                    <div class="success-order-value" id="successTableNumber">--</div>
+                </div>
+            </div>
+
+            <div class="success-message-text">
+                Your delicious food is being prepared right now!
+                <strong>Want to order more?</strong>
+                Browse our menu and add more items to your order anytime.
+            </div>
+
+            <div class="success-modal-buttons">
+                <button class="success-modal-btn success-modal-btn-primary" onclick="closeSuccessAndContinue()">
+                    <i class="bi bi-arrow-left-circle-fill"></i>
+                    Browse Menu & Order More
+                </button>
+                <button class="success-modal-btn success-modal-btn-secondary" onclick="closeSuccessModal()">
+                    <i class="bi bi-x-circle"></i>
+                    Close
                 </button>
             </div>
         </div>
@@ -734,6 +992,7 @@
         const tableNum = {{ table.table_number if table else 'null' }};
         const token = '{{ access_token or "" }}';
         const restId = '{{ restaurant.public_id }}';
+        const currencySymbol = '{{ restaurant.currency_symbol or "$" }}';
 
         document.querySelectorAll('.menu-item[data-id]').forEach(el => {
             items[el.dataset.id] = { id: +el.dataset.id, name: el.dataset.name, price: +el.dataset.price };
@@ -765,7 +1024,7 @@
                             <div class="cart-item-name">${items[id].name}</div>
                             <div class="cart-item-qty">× ${qty}</div>
                         </div>
-                        <div class="cart-item-price">$${(items[id].price * qty).toFixed(2)}</div>
+                        <div class="cart-item-price">${currencySymbol}${(items[id].price * qty).toFixed(2)}</div>
                     </div>`;
                 }
             }
@@ -777,12 +1036,19 @@
             for (const [id, qty] of Object.entries(cart)) {
                 if (qty > 0) orderItems.push({ menu_item_id: +id, quantity: qty });
             }
-            if (!orderItems.length) return alert('Your cart is empty');
+            if (!orderItems.length) {
+                showToast('Your cart is empty', 'warning');
+                return;
+            }
 
             let tbl = tableNum, tkn = token;
             if (!hasTable) {
                 const inp = document.getElementById('tableInput');
-                if (!inp.value) { alert('Please enter your table number'); inp.focus(); return; }
+                if (!inp.value) {
+                    showToast('Please enter your table number', 'warning');
+                    inp.focus();
+                    return;
+                }
                 tbl = +inp.value; tkn = '';
             }
 
@@ -804,13 +1070,82 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    window.location.href = '/payment/' + data.data.order_number;
+                    console.log('Order success, data:', data);
+
+                    // Close the cart modal properly
+                    const cartModalEl = document.getElementById('cartModal');
+                    const orderModal = bootstrap.Modal.getInstance(cartModalEl);
+                    if (orderModal) {
+                        orderModal.hide();
+                    }
+
+                    // Remove any lingering backdrops and reset body
+                    setTimeout(() => {
+                        document.querySelectorAll('.modal-backdrop').forEach(el => {
+                            console.log('Removing backdrop:', el);
+                            el.remove();
+                        });
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = '';
+                        document.body.style.paddingRight = '';
+
+                        console.log('Body classes after cleanup:', document.body.className);
+                    }, 300);
+
+                    // Show success modal with order number and table number
+                    setTimeout(() => {
+                        const modal = document.getElementById('orderSuccessModal');
+                        console.log('Success modal element:', modal);
+                        console.log('Setting order number:', data.data.order_number);
+                        console.log('Setting table number:', tbl);
+
+                        document.getElementById('successOrderNumber').textContent = data.data.order_number;
+                        document.getElementById('successTableNumber').textContent = tbl;
+                        modal.classList.add('show');
+
+                        console.log('Modal classes:', modal.className);
+                        console.log('Modal display style:', window.getComputedStyle(modal).display);
+                    }, 400);
+
+                    // Clear cart
+                    for (const id in cart) {
+                        cart[id] = 0;
+                        const el = document.getElementById('qty-' + id);
+                        if (el) {
+                            el.textContent = 0;
+                            el.classList.remove('has-qty');
+                        }
+                    }
+                    updateCart();
                 } else {
-                    alert(data.error || data.message || 'Order failed');
+                    showToast(data.error || data.message || 'Order failed', 'error');
                 }
             } catch (e) {
-                alert('Error placing order: ' + e.message);
+                showToast('Error placing order: ' + e.message, 'error');
             }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast-notification toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('orderSuccessModal').classList.remove('show');
+        }
+
+        function closeSuccessAndContinue() {
+            closeSuccessModal();
+            // Scroll to top to show menu
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // Smooth scroll for category nav

@@ -29,7 +29,18 @@ Modern table-based QR ordering system with printable QR codes for each table. Cu
 - ✅ Active/Inactive table status
 - ✅ Table statistics (Total, Active, Inactive)
 
-### 3. **Admin Backend - QR Template Settings** (`/rock/qr-settings`)
+### 3. **Kitchen Display System (KDS)** - Modern & Compact
+- ✅ 2-column grid layout per lane for maximum order visibility
+- ✅ Compact order cards with flexible height
+- ✅ Real-time elapsed time counter (accurate minutes:seconds)
+- ✅ All order items visible without scrolling
+- ✅ Quick action buttons (Start, Done, Serve)
+- ✅ 4-digit order numbers for easy calling
+- ✅ Color-coded urgency indicators
+- ✅ Responsive design for all screen sizes
+- ✅ Live updates every 3 seconds
+
+### 4. **Admin Backend - QR Template Settings** (`/rock/qr-settings`)
 - ✅ Configure SaaS/Platform name
 - ✅ Upload platform logo
 - ✅ Set primary & background colors (color pickers)
@@ -272,6 +283,204 @@ For issues or questions:
 ---
 
 **Status**: ✅ Fully Implemented and Tested
-**Version**: 1.0
+**Version**: 2.0
 **Date**: January 2, 2026
+
+---
+
+## 🆕 Version 2.0 Updates (Kitchen Screen)
+
+### Kitchen Display Improvements:
+1. **2-Column Grid Layout**
+   - Each lane displays orders in a 2-column grid
+   - Maximizes screen real estate
+   - See 4-6 orders at once per lane
+
+2. **Compact Design**
+   - Reduced card padding (8-10px)
+   - Smaller fonts (11-18px)
+   - Flexible height based on order items
+   - No unnecessary scrolling
+
+3. **Human-Readable Timer**
+   - Shows "Just now", "1 min ago", "5 min ago", "20 min ago"
+   - Updates every second for accuracy
+   - Easy for kitchen staff to understand elapsed time
+   - Color-coded urgency:
+     - Green (< 5 min)
+     - Orange (5-10 min)
+     - Red (10-15 min)
+     - Critical red (> 15 min)
+
+4. **All Items Visible**
+   - Removed max-height restriction
+   - All order items shown without scrolling
+   - Compact item display with clear quantities
+
+5. **Quick Actions**
+   - All status buttons visible and accessible
+   - Short button text: "Start", "Done", "Serve"
+   - Easy to tap on tablets
+
+### Order Number System:
+- Changed from `ORD-20260102141532-A1B2` to `#1234`
+- 4-digit random numbers for easy communication
+- Kitchen staff can call: "Order 1234 ready!"
+- Displays consistently across all screens
+
+### Customer Display Improvements:
+1. **Full Order Numbers**
+   - Shows complete order number (e.g., "#1234")
+   - No truncation or partial display
+   - Consistent across all status columns
+
+2. **Fully Adaptive Grid Layout** ✨
+   - **NO FIXED SIZES** - Tiles expand/shrink to fill available space
+   - **Always occupies full column area** regardless of order count
+   - Grid columns adjust automatically:
+     - **1 order**: 1 column (full width - maximum size)
+     - **2-3 orders**: 2 columns
+     - **4-6 orders**: 3 columns
+     - **7-11 orders**: 4 columns
+     - **12-19 orders**: 5 columns
+     - **20-29 orders**: 6 columns
+     - **30-41 orders**: 7 columns
+     - **42+ orders**: 8 columns
+   - **Fully responsive** - tiles scale proportionally
+   - **No scrolling** - all orders always visible
+   - **Optimized for touchscreens**: No mouse needed
+
+3. **Proportional Scaling**
+   - Tiles expand when few orders (fill space)
+   - Tiles shrink when many orders (fit all)
+   - Fonts scale proportionally with tile size
+   - Padding/spacing adjusts automatically
+   - Everything stays perfectly balanced
+
+### Timer Format Examples:
+- **Just now** - Order placed less than 1 minute ago
+- **1 min ago** - Order placed 1 minute ago
+- **5 min ago** - Order placed 5 minutes ago
+- **15 min ago** - Order placed 15 minutes ago (urgent)
+- **20 min ago** - Order placed 20+ minutes ago (critical)
+
+---
+
+## 🎨 Customer Screen - Fully Adaptive System
+
+The customer display uses a **truly adaptive grid** that adjusts column count based on order quantity, ensuring tiles always fill the available space.
+
+### Adaptive Column System:
+```css
+/* Dynamic columns based on exact order count */
+1 order:      1 column  (tiles at maximum size)
+2-3 orders:   2 columns (tiles fill ~50% width each)
+4-6 orders:   3 columns (tiles fill ~33% width each)
+7-11 orders:  4 columns (tiles fill ~25% width each)
+12-19 orders: 5 columns (tiles fill ~20% width each)
+20-29 orders: 6 columns (tiles fill ~16% width each)
+30-41 orders: 7 columns (tiles fill ~14% width each)
+42+ orders:   8 columns (tiles fill ~12% width each)
+```
+
+### How It Works:
+Uses CSS `:has()` with `:nth-child` and `:nth-last-child` to detect exact order count:
+```css
+/* Example: Exactly 1 order */
+.orders-grid:has(.order-ticket:nth-child(1):nth-last-child(1)) {
+    grid-template-columns: 1fr;
+}
+
+/* Example: 2-3 orders */
+.orders-grid:has(.order-ticket:nth-child(2):nth-last-child(1)),
+.orders-grid:has(.order-ticket:nth-child(3):nth-last-child(1)) {
+    grid-template-columns: repeat(2, 1fr);
+}
+```
+
+### Proportional Font Scaling:
+```css
+/* Order Number */
+1-6 orders:   32px (Large - tiles are big)
+7-11 orders:  28px (Medium-Large)
+12-19 orders: 24px (Medium)
+20-29 orders: 20px (Small)
+30-41 orders: 18px (Compact)
+42+ orders:   16px (Dense)
+
+/* Table Tag */
+1-6 orders:   12px (Normal)
+7-11 orders:  11px (Slightly smaller)
+12-19 orders: 10px (Small)
+20-29 orders: 9px  (Compact)
+30-41 orders: 8px  (Dense)
+42+ orders:   7px  (Very dense)
+```
+
+### Proportional Spacing:
+```css
+/* Grid Gap */
+1-19 orders:  12px (Spacious)
+20-29 orders: 10px (Medium)
+30-41 orders: 8px  (Compact)
+42+ orders:   6px  (Dense)
+
+/* Tile Padding */
+1-11 orders:  8px  (Comfortable)
+12-19 orders: 6px  (Medium)
+20-29 orders: 5px  (Compact)
+30-41 orders: 4px  (Dense)
+42+ orders:   3px  (Very dense)
+```
+
+### Key Advantages:
+- ✅ **Space-Filling**: 1 order takes full width, 3 orders split into thirds
+- ✅ **No Wasted Space**: Tiles always expand to fill available area
+- ✅ **No Fixed Minimums**: Tiles can be any size based on count
+- ✅ **Perfectly Balanced**: Grid automatically optimizes layout
+- ✅ **No Scrolling**: All orders always visible on one screen
+- ✅ **Touchscreen Perfect**: Large tiles when few orders, compact when many
+
+### Real-World Examples (1920px × 1080px display):
+
+**Preparing Column Scenarios:**
+
+**1 order:**
+- Columns: 1
+- Tile size: ~570px × 570px (massive - fills full width)
+- Font: 32px
+- **Perfect for visibility!**
+
+**5 orders:**
+- Columns: 3
+- Tile size: ~180px × 180px per tile
+- Font: 32px
+- Layout: 3 columns × 2 rows = 6 tiles (1 empty slot)
+
+**15 orders:**
+- Columns: 5
+- Tile size: ~108px × 108px per tile
+- Font: 24px
+- Layout: 5 columns × 3 rows = 15 tiles (perfectly filled)
+
+**21 orders:**
+- Columns: 6
+- Tile size: ~90px × 90px per tile
+- Font: 20px
+- Layout: 6 columns × 4 rows = 24 tiles (21 filled, 3 empty)
+- **NO SCROLLING** ✅
+
+**50 orders:**
+- Columns: 8
+- Tile size: ~68px × 68px per tile
+- Font: 16px
+- Layout: 8 columns × 7 rows = 56 tiles (50 filled, 6 empty)
+- **NO SCROLLING** ✅
+
+### Maximum Capacity (No Scroll):
+- **1920px screen**: Up to **64 orders** (8 columns × 8 rows)
+- **1366px screen**: Up to **56 orders** (8 columns × 7 rows)
+- **1024px screen**: Up to **48 orders** (8 columns × 6 rows)
+
+**The system adapts perfectly - from 1 order to 60+ orders, all without scrolling!** 🎉
 

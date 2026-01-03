@@ -11,7 +11,7 @@ All endpoints:
 - Are optimized for frontend consumption
 - Support caching
 """
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from app.models.website_content_models import (
     HeroSection, Feature, HowItWorksStep, PricingPlan,
     Testimonial, FAQ, ContactInfo, FooterLink, FooterContent, SocialMediaLink
@@ -93,7 +93,12 @@ def get_pricing_plans():
     """
     Get all active pricing plans ordered by display order
     No authentication required
+
+    Query params:
+    - country: Country code (e.g., US, BD, NG) for tier-based pricing
     """
+    country_code = request.args.get('country', 'US').upper()
+
     plans = PricingPlan.query.filter_by(is_active=True).order_by(
         PricingPlan.display_order
     ).all()
@@ -101,22 +106,15 @@ def get_pricing_plans():
     # Parse features as JSON if stored as JSON string
     data = []
     for plan in plans:
-        plan_dict = plan.to_dict()
-        # Try to parse features if it's a JSON string
-        if plan_dict.get('features'):
-            import json
-            try:
-                if isinstance(plan_dict['features'], str):
-                    plan_dict['features'] = json.loads(plan_dict['features'])
-            except:
-                # If parsing fails, split by newline
-                if isinstance(plan_dict['features'], str):
-                    plan_dict['features'] = [f.strip() for f in plan_dict['features'].split('\n') if f.strip()]
+        plan_dict = plan.to_dict(country_code=country_code)
+        # Features are already parsed in to_dict
         data.append(plan_dict)
 
     return jsonify({
         'success': True,
         'count': len(data),
+        'country': country_code,
+        'tier': PricingPlan.get_tier_for_country(country_code),
         'data': data
     }), 200
 
@@ -150,6 +148,69 @@ def get_highlighted_plan():
     return jsonify({
         'success': True,
         'data': plan_dict
+    }), 200
+
+
+@public_content_api.route('/pricing-plans/comparison', methods=['GET'])
+def get_plan_comparison():
+    """
+    Get feature comparison matrix for all pricing plans
+    No authentication required
+
+    Query params:
+    - country: Country code for tier-based pricing
+    """
+    from app.services.pricing_service import PricingPlanService
+
+    country_code = request.args.get('country', 'US').upper()
+
+    comparison = PricingPlanService.get_plan_comparison()
+
+    # Apply country-specific pricing to plans
+    tier = PricingPlan.get_tier_for_country(country_code)
+    for plan in comparison['plans']:
+        plan['price'] = plan.get(f'price_tier{tier[-1]}') or plan['price_tier1']
+        plan['tier'] = tier
+        plan['country'] = country_code
+
+    return jsonify({
+        'success': True,
+        'country': country_code,
+        'tier': tier,
+        'data': comparison
+    }), 200
+
+
+@public_content_api.route('/pricing-plans/tiers', methods=['GET'])
+def get_pricing_tiers():
+    """
+    Get information about pricing tiers and their country mappings
+    No authentication required
+    """
+    return jsonify({
+        'success': True,
+        'data': {
+            'tier1': {
+                'name': 'Tier 1 - Developed Countries',
+                'countries': PricingPlan.TIER_COUNTRIES['tier1'],
+                'description': 'USA, UK, AU, CA, EU, SG, JP, etc.'
+            },
+            'tier2': {
+                'name': 'Tier 2 - Middle-Developed Countries',
+                'countries': PricingPlan.TIER_COUNTRIES['tier2'],
+                'description': 'UAE, SA, Turkey, Malaysia, etc.'
+            },
+            'tier3': {
+                'name': 'Tier 3 - Developing Countries',
+                'countries': PricingPlan.TIER_COUNTRIES['tier3'],
+                'description': 'India, Pakistan, Bangladesh, China, SE Asia, etc.'
+            },
+            'tier4': {
+                'name': 'Tier 4 - Under-Developed Countries',
+                'countries': PricingPlan.TIER_COUNTRIES['tier4'],
+                'description': 'African nations and similar countries'
+            }
+        }
     }), 200
 
 
@@ -541,6 +602,144 @@ def get_all_content():
 
 
 # ============================================================================
+# GEO LOCATION & COUNTRY DETECTION API
+# ============================================================================
+
+@public_content_api.route('/detect-country', methods=['GET'])
+def detect_country():
+    """
+    Detect user's country from IP address and return tier info
+    No authentication required
+    """
+    from app.services.geo_service import get_country_info, get_client_ip
+
+    info = get_country_info()
+    client_ip = get_client_ip()
+
+    return jsonify({
+        'success': True,
+        'ip': client_ip if client_ip else 'localhost',
+        'data': info
+    }), 200
+
+
+@public_content_api.route('/set-country', methods=['POST'])
+def set_country():
+    """
+    Manually set user's country (overrides IP detection)
+    Used when user selects country during registration
+    """
+    from app.services.geo_service import set_user_country, get_country_info
+
+    data = request.get_json() or {}
+    country_code = data.get('country_code', '').upper()
+
+    if not country_code or len(country_code) != 2:
+        return jsonify({
+            'success': False,
+            'message': 'Invalid country code. Must be 2-letter ISO code.'
+        }), 400
+
+    set_user_country(country_code)
+    info = get_country_info()
+
+    return jsonify({
+        'success': True,
+        'message': f'Country set to {info["country_name"]}',
+        'data': info
+    }), 200
+
+
+@public_content_api.route('/countries', methods=['GET'])
+def get_countries():
+    """
+    Get list of all supported countries with tier info
+    For country selector dropdowns
+    """
+    from app.services.geo_service import get_all_countries_for_selector
+
+    countries = get_all_countries_for_selector()
+
+    return jsonify({
+        'success': True,
+        'count': len(countries),
+        'data': countries
+    }), 200
+
+
+@public_content_api.route('/countries/by-tier', methods=['GET'])
+def get_countries_by_tier():
+    """
+    Get all countries grouped by pricing tier
+    For displaying tier information
+    """
+    from app.models.website_content_models import PricingPlan
+
+    countries_by_tier = PricingPlan.get_all_countries_by_tier()
+
+    tier_info = {
+        'tier1': {'name': 'Premium', 'description': 'Developed/High-income countries'},
+        'tier2': {'name': 'Standard', 'description': 'Upper-middle income countries'},
+        'tier3': {'name': 'Economy', 'description': 'Lower-middle income countries'},
+        'tier4': {'name': 'Budget', 'description': 'Developing countries'}
+    }
+
+    result = {}
+    for tier, countries in countries_by_tier.items():
+        result[tier] = {
+            'info': tier_info.get(tier, {}),
+            'count': len(countries),
+            'countries': countries
+        }
+
+    return jsonify({
+        'success': True,
+        'data': result
+    }), 200
+
+
+@public_content_api.route('/pricing-for-country', methods=['GET'])
+def get_pricing_for_country():
+    """
+    Get pricing plans with prices adjusted for user's country
+    Auto-detects country from IP or uses provided country code
+    """
+    from app.services.geo_service import get_user_country
+
+    # Use provided country or auto-detect
+    country_code = request.args.get('country')
+    if not country_code:
+        country_code = get_user_country()
+    else:
+        country_code = country_code.upper()
+
+    tier = PricingPlan.get_tier_for_country(country_code)
+    country_name = PricingPlan.get_country_name(country_code)
+
+    plans = PricingPlan.query.filter_by(is_active=True).order_by(
+        PricingPlan.display_order
+    ).all()
+
+    data = []
+    for plan in plans:
+        plan_dict = plan.to_dict(country_code=country_code)
+        # Add tier-specific price
+        plan_dict['localized_price'] = plan.get_price_for_country(country_code)
+        data.append(plan_dict)
+
+    return jsonify({
+        'success': True,
+        'country': {
+            'code': country_code,
+            'name': country_name,
+            'tier': tier
+        },
+        'count': len(data),
+        'data': data
+    }), 200
+
+
+# ============================================================================
 # HEALTH CHECK
 # ============================================================================
 
@@ -552,4 +751,6 @@ def health_check():
         'status': 'healthy',
         'message': 'Public Content API is running'
     }), 200
+
+
 
