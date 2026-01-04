@@ -459,8 +459,11 @@
                 </div>
 
                 <button type="submit" class="btn-submit" id="submitBtn">
-                    <i class="bi bi-rocket-takeoff me-2"></i>Create Account
+                    <i class="bi bi-rocket-takeoff me-2"></i><span id="submitBtnText">Create Account</span>
                 </button>
+                <div id="trialNotice" style="display: none; text-align: center; margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.6);">
+                    <i class="bi bi-shield-check me-1"></i>No credit card required for trial
+                </div>
             </form>
 
             <div class="auth-footer">
@@ -484,31 +487,73 @@
 
                 if (data.success && data.data.length > 0) {
                     const grid = document.getElementById('packageGrid');
-                    grid.innerHTML = data.data.map((plan, index) => `
-                        <label class="package-card ${index === 0 ? 'selected' : ''}">
-                            <input type="radio" name="pricing_plan_id" value="${plan.id}" ${index === 0 ? 'checked' : ''} required>
-                            ${plan.is_highlighted ? '<div class="package-badge">POPULAR</div>' : ''}
-                            <div class="package-header">
-                                <span class="package-name">${plan.name}</span>
-                                <span class="package-price">$${plan.price}<small style="font-size:0.6em; font-weight: 500;">/${plan.price_period}</small></span>
-                            </div>
-                            <ul class="package-features">
-                                ${plan.features.slice(0, 3).map(f => `<li><i class="bi bi-check-circle-fill"></i> ${f}</li>`).join('')}
-                            </ul>
-                        </label>
-                    `).join('');
+                    grid.innerHTML = data.data.map((plan, index) => {
+                        const isFree = parseFloat(plan.price) === 0;
+                        const hasTrial = plan.trial_enabled && plan.trial_days > 0 && !isFree;
+                        const trialBadge = hasTrial ? `<span style="background: linear-gradient(135deg, #22c55e, #059669); color: white; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; margin-left: 8px;"><i class="bi bi-gift me-1"></i>${plan.trial_days}-DAY TRIAL</span>` : '';
+                        const priceText = isFree ? 'FREE' : `$${plan.price}`;
+
+                        return `
+                            <label class="package-card ${index === 0 ? 'selected' : ''}">
+                                <input type="radio" name="pricing_plan_id" value="${plan.id}" ${index === 0 ? 'checked' : ''} required>
+                                ${plan.is_highlighted ? '<div class="package-badge">POPULAR</div>' : ''}
+                                <div class="package-header">
+                                    <span class="package-name">${plan.name}${trialBadge}</span>
+                                    <span class="package-price">${priceText}${!isFree ? '<small style="font-size:0.6em; font-weight: 500;">/' + plan.price_period + '</small>' : ''}</span>
+                                </div>
+                                ${hasTrial ? '<div style="font-size: 11px; color: var(--accent); margin-bottom: 8px;"><i class="bi bi-check-circle-fill me-1"></i>Try free for ' + plan.trial_days + ' days, then $' + plan.price + '/' + plan.price_period + '</div>' : ''}
+                                <ul class="package-features">
+                                    ${plan.features.slice(0, 3).map(f => `<li><i class="bi bi-check-circle-fill"></i> ${f}</li>`).join('')}
+                                </ul>
+                            </label>
+                        `;
+                    }).join('');
+
+                    // Store plan data for button text updates
+                    window.plansData = data.data;
 
                     // Add click handlers
                     document.querySelectorAll('.package-card').forEach(card => {
                         card.addEventListener('click', function() {
                             document.querySelectorAll('.package-card').forEach(c => c.classList.remove('selected'));
                             this.classList.add('selected');
-                            this.querySelector('input[type="radio"]').checked = true;
+                            const radio = this.querySelector('input[type="radio"]');
+                            radio.checked = true;
+                            updateSubmitButton(radio.value);
                         });
                     });
+
+                    // Update button for initially selected plan
+                    const initialPlan = document.querySelector('.package-card.selected input[type="radio"]');
+                    if (initialPlan) {
+                        updateSubmitButton(initialPlan.value);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading packages:', error);
+            }
+        }
+
+        // Update submit button text based on selected plan
+        function updateSubmitButton(planId) {
+            const plan = window.plansData?.find(p => p.id == planId);
+            const submitBtnText = document.getElementById('submitBtnText');
+            const trialNotice = document.getElementById('trialNotice');
+
+            if (plan) {
+                const isFree = parseFloat(plan.price) === 0;
+                const hasTrial = plan.trial_enabled && plan.trial_days > 0 && !isFree;
+
+                if (hasTrial) {
+                    submitBtnText.textContent = `Start ${plan.trial_days}-Day Free Trial`;
+                    trialNotice.style.display = 'block';
+                } else if (isFree) {
+                    submitBtnText.textContent = 'Get Started Free';
+                    trialNotice.style.display = 'none';
+                } else {
+                    submitBtnText.textContent = 'Create Account';
+                    trialNotice.style.display = 'none';
+                }
             }
         }
 
@@ -538,8 +583,12 @@
         // Check URL for tab parameter
         const urlParams = new URLSearchParams(window.location.search);
         const tab = urlParams.get('tab');
+        const signup = urlParams.get('signup');
+
         if (tab === 'login') {
             switchTab('login');
+        } else if (signup === '1') {
+            switchTab('signup');
         }
     </script>
 </body>

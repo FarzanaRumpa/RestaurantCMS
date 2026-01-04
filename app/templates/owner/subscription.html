@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription - {{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --border: #1f1f2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8b8b9e;
+            --text-muted: #5a5a6e;
+            --accent-primary: #6366f1;
+            --accent-primary-glow: rgba(99, 102, 241, 0.2);
+            --accent-green: #22c55e;
+            --accent-green-bg: rgba(34, 197, 94, 0.1);
+            --accent-blue: #3b82f6;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .back-btn:hover { color: var(--text-primary); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-badge.trialing {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--accent-primary);
+        }
+
+        .status-badge.active {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+        }
+
+        .status-badge.payment_failed {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        .status-badge.cancelled {
+            background: rgba(234, 179, 8, 0.15);
+            color: var(--accent-yellow);
+        }
+
+        .status-badge.suspended, .status-badge.expired {
+            background: rgba(107, 114, 128, 0.15);
+            color: var(--text-muted);
+        }
+
+        /* Subscription Card */
+        .subscription-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.05));
+            border: 1px solid var(--accent-primary);
+        }
+
+        .plan-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .plan-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .plan-details h2 {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .plan-details .price {
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        .plan-details .price span {
+            color: var(--accent-primary);
+            font-weight: 700;
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .info-item {
+            background: var(--bg-card-hover);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .info-value.warning { color: var(--accent-orange); }
+        .info-value.danger { color: var(--accent-red); }
+        .info-value.success { color: var(--accent-green); }
+
+        /* Trial Banner */
+        .trial-banner {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.1));
+            border: 1px solid var(--accent-primary);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .trial-banner i {
+            font-size: 24px;
+            color: var(--accent-primary);
+        }
+
+        .trial-banner .content h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .trial-banner .content p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Payment Method Card */
+        .payment-method {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-card-hover);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .payment-icon {
+            width: 48px;
+            height: 32px;
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #1a1a2e;
+            font-size: 12px;
+        }
+
+        .payment-details .card-number {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .payment-details .card-expiry {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5558e3;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-success {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-success:hover {
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        /* Alert */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .alert-warning {
+            background: rgba(234, 179, 8, 0.15);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            color: var(--accent-yellow);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-red);
+        }
+
+        .alert i { font-size: 20px; margin-top: 2px; }
+        .alert-content h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .alert-content p { font-size: 13px; opacity: 0.9; }
+
+        /* No Subscription */
+        .no-subscription {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .no-subscription i {
+            font-size: 64px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .no-subscription h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .no-subscription p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .modal h3 {
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .modal p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 100px;
+            margin-bottom: 16px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        /* Event History */
+        .event-list {
+            margin-top: 16px;
+        }
+
+        .event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .event-item:last-child { border-bottom: none; }
+
+        .event-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .event-icon.trial { background: rgba(99, 102, 241, 0.15); color: var(--accent-primary); }
+        .event-icon.payment { background: var(--accent-green-bg); color: var(--accent-green); }
+        .event-icon.failed { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .event-icon.cancelled { background: rgba(234, 179, 8, 0.15); color: var(--accent-yellow); }
+
+        .event-content { flex: 1; }
+        .event-title { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+        .event-time { font-size: 12px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <a href="{{ url_for('owner.settings') }}" class="back-btn">
+                    <i class="bi bi-arrow-left"></i> Back to Settings
+                </a>
+                <h1>Subscription</h1>
+            </div>
+        </div>
+
+        {% if subscription %}
+            <!-- Active/Trial Subscription -->
+            <div class="card subscription-card">
+                <div class="card-header">
+                    <span class="card-title">Current Plan</span>
+                    <span class="status-badge {{ subscription.status }}">
+                        {% if subscription.status == 'trialing' %}
+                            <i class="bi bi-clock"></i> Trial
+                        {% elif subscription.status == 'active' %}
+                            <i class="bi bi-check-circle"></i> Active
+                        {% elif subscription.status == 'payment_failed' %}
+                            <i class="bi bi-exclamation-circle"></i> Payment Failed
+                        {% elif subscription.status == 'cancelled' %}
+                            <i class="bi bi-x-circle"></i> Cancelled
+                        {% else %}
+                            <i class="bi bi-info-circle"></i> {{ subscription.status|title }}
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="plan-info">
+                    <div class="plan-icon">
+                        <i class="bi bi-star-fill"></i>
+                    </div>
+                    <div class="plan-details">
+                        <h2>{{ subscription.pricing_plan.name }}</h2>
+                        <p class="price">
+                            <span>${{ "%.2f"|format(subscription.billing_amount|float) }}</span>
+                            / {{ subscription.billing_interval }}
+                        </p>
+                    </div>
+                </div>
+
+                {% if subscription.status == 'trialing' %}
+                    <div class="trial-banner">
+                        <i class="bi bi-gift"></i>
+                        <div class="content">
+                            <h4>Free Trial Active</h4>
+                            <p>Your trial ends on {{ subscription.trial_end_date.strftime('%B %d, %Y') }}.
+                               You will be charged ${{ "%.2f"|format(subscription.billing_amount|float) }} after the trial ends.</p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if subscription.status == 'payment_failed' %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <div class="alert-content">
+                            <h4>Payment Failed</h4>
+                            <p>We couldn't process your payment. Please update your payment method to continue your subscription.</p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if subscription.cancel_at_period_end %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle-fill"></i>
+                        <div class="alert-content">
+                            <h4>Cancellation Scheduled</h4>
+                            <p>Your subscription will end on {{ subscription.current_period_end.strftime('%B %d, %Y') if subscription.current_period_end else subscription.trial_end_date.strftime('%B %d, %Y') }}. You can reactivate anytime before then.</p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="info-grid">
+                    {% if subscription.status == 'trialing' %}
+                        <div class="info-item">
+                            <div class="info-label">Trial Ends</div>
+                            <div class="info-value {% if subscription.days_until_trial_end <= 3 %}warning{% endif %}">
+                                {{ subscription.trial_end_date.strftime('%b %d, %Y') }}
+                                <br><small>({{ subscription.days_until_trial_end }} days left)</small>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">First Charge</div>
+                            <div class="info-value">${{ "%.2f"|format(subscription.billing_amount|float) }}</div>
+                        </div>
+                    {% else %}
+                        <div class="info-item">
+                            <div class="info-label">Current Period</div>
+                            <div class="info-value">
+                                {% if subscription.current_period_start and subscription.current_period_end %}
+                                    {{ subscription.current_period_start.strftime('%b %d') }} - {{ subscription.current_period_end.strftime('%b %d, %Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Next Billing</div>
+                            <div class="info-value">
+                                {% if subscription.next_billing_date and not subscription.cancel_at_period_end %}
+                                    {{ subscription.next_billing_date.strftime('%b %d, %Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    <div class="info-item">
+                        <div class="info-label">Billing Amount</div>
+                        <div class="info-value">${{ "%.2f"|format(subscription.billing_amount|float) }} / {{ subscription.billing_interval }}</div>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                {% if subscription.payment_method_id %}
+                    <h4 style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">Payment Method</h4>
+                    <div class="payment-method">
+                        <div class="payment-icon">
+                            {{ subscription.payment_method_brand|upper if subscription.payment_method_brand else 'CARD' }}
+                        </div>
+                        <div class="payment-details">
+                            <div class="card-number">•••• •••• •••• {{ subscription.payment_method_last4 or '****' }}</div>
+                            <div class="card-expiry">Expires {{ subscription.payment_method_expiry or 'N/A' }}</div>
+                        </div>
+                        <a href="{{ url_for('subscription.update_payment_method') }}" class="btn btn-secondary" style="margin-left: auto;">
+                            <i class="bi bi-pencil"></i> Update
+                        </a>
+                    </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                <div class="action-buttons" style="margin-top: 24px;">
+                    {% if subscription.cancel_at_period_end %}
+                        <button class="btn btn-success" onclick="reactivateSubscription()">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reactivate Subscription
+                        </button>
+                    {% else %}
+                        <a href="{{ url_for('owner.upgrade_plan') }}" class="btn btn-primary">
+                            <i class="bi bi-arrow-up-circle"></i> Change Plan
+                        </a>
+                        {% if subscription.status == 'payment_failed' %}
+                            <a href="{{ url_for('subscription.update_payment_method') }}" class="btn btn-success">
+                                <i class="bi bi-credit-card"></i> Update Payment Method
+                            </a>
+                        {% endif %}
+                        <button class="btn btn-danger" onclick="showCancelModal()">
+                            <i class="bi bi-x-circle"></i> Cancel Subscription
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Recent Activity</span>
+                    <a href="{{ url_for('subscription.subscription_history') }}" class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;">
+                        View All
+                    </a>
+                </div>
+                <div class="event-list" id="eventList">
+                    <!-- Events will be loaded via JS -->
+                    <p style="color: var(--text-muted); text-align: center; padding: 20px;">Loading...</p>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- No Subscription -->
+            <div class="card">
+                <div class="no-subscription">
+                    <i class="bi bi-credit-card-2-front"></i>
+                    <h3>No Active Subscription</h3>
+                    <p>Choose a plan to unlock all features and grow your restaurant business.</p>
+                    <a href="{{ url_for('owner.upgrade_plan') }}" class="btn btn-primary">
+                        <i class="bi bi-rocket-takeoff"></i> View Plans
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Cancel Modal -->
+    <div class="modal-overlay" id="cancelModal">
+        <div class="modal">
+            <h3>Cancel Subscription</h3>
+            <p>Are you sure you want to cancel your subscription?
+               {% if subscription and subscription.status == 'trialing' %}
+                   Since you're on a trial, no charges will be made.
+               {% else %}
+                   You'll continue to have access until the end of your current billing period.
+               {% endif %}
+            </p>
+            <textarea id="cancelReason" placeholder="Please tell us why you're cancelling (optional)..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideCancelModal()">Keep Subscription</button>
+                <button class="btn btn-danger" onclick="confirmCancel()">
+                    <i class="bi bi-x-circle"></i> Cancel Subscription
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load recent events
+        function loadEvents() {
+            fetch('/owner/api/subscription/events?limit=5')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.data.length > 0) {
+                        const container = document.getElementById('eventList');
+                        container.innerHTML = data.data.map(event => {
+                            let iconClass = 'trial';
+                            let icon = 'bi-clock';
+
+                            if (event.event_type.includes('charged') || event.event_type === 'payment_success') {
+                                iconClass = 'payment';
+                                icon = 'bi-check-circle';
+                            } else if (event.event_type.includes('failed')) {
+                                iconClass = 'failed';
+                                icon = 'bi-exclamation-circle';
+                            } else if (event.event_type.includes('cancel')) {
+                                iconClass = 'cancelled';
+                                icon = 'bi-x-circle';
+                            }
+
+                            return `
+                                <div class="event-item">
+                                    <div class="event-icon ${iconClass}">
+                                        <i class="bi ${icon}"></i>
+                                    </div>
+                                    <div class="event-content">
+                                        <div class="event-title">${formatEventType(event.event_type)}</div>
+                                        <div class="event-time">${new Date(event.created_at).toLocaleDateString('en-US', {
+                                            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                        })}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        document.getElementById('eventList').innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No activity yet</p>';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('eventList').innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No activity yet</p>';
+                });
+        }
+
+        function formatEventType(type) {
+            const labels = {
+                'trial_started': 'Trial Started',
+                'trial_ending_soon': 'Trial Ending Soon',
+                'trial_ended': 'Trial Ended',
+                'created': 'Subscription Created',
+                'charged': 'Payment Successful',
+                'payment_failed': 'Payment Failed',
+                'cancelled': 'Subscription Cancelled',
+                'reactivated': 'Subscription Reactivated',
+                'upgraded': 'Plan Upgraded',
+                'downgraded': 'Plan Downgraded',
+                'payment_method_updated': 'Payment Method Updated'
+            };
+            return labels[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function showCancelModal() {
+            document.getElementById('cancelModal').classList.add('active');
+        }
+
+        function hideCancelModal() {
+            document.getElementById('cancelModal').classList.remove('active');
+        }
+
+        function confirmCancel() {
+            const reason = document.getElementById('cancelReason').value;
+
+            fetch('/owner/subscription/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(err => {
+                alert('Error cancelling subscription');
+            });
+        }
+
+        function reactivateSubscription() {
+            if (!confirm('Reactivate your subscription?')) return;
+
+            fetch('/owner/subscription/reactivate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Load events on page load
+        {% if subscription %}
+        loadEvents();
+        {% endif %}
+    </script>
+</body>
+</html>
+

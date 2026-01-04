@@ -118,6 +118,16 @@ class PricingPlan(db.Model):
     price_period = db.Column(db.String(50), default='month')  # month, year, one-time
     currency = db.Column(db.String(10), default='USD')
 
+    # Trial Configuration
+    trial_enabled = db.Column(db.Boolean, default=False)  # Whether trial is available for this plan
+    trial_days = db.Column(db.Integer, default=0)  # Number of trial days (0 = no trial)
+
+    # Billing Retry Configuration
+    grace_period_days = db.Column(db.Integer, default=3)  # Days before suspension after payment failure
+    max_retry_attempts = db.Column(db.Integer, default=3)  # Max payment retry attempts
+    retry_interval_hours = db.Column(db.Integer, default=24)  # Hours between retry attempts
+    cancellation_behavior = db.Column(db.String(20), default='end_of_period')  # 'immediate' or 'end_of_period'
+
     # Feature limits
     max_tables = db.Column(db.Integer)  # Max tables per restaurant
     max_menu_items = db.Column(db.Integer)  # Max menu items
@@ -376,6 +386,13 @@ class PricingPlan(db.Model):
             'price_tier4': float(self.price_tier4) if self.price_tier4 else None,
             'price_period': self.price_period,
             'currency': self.currency,
+            # Trial configuration
+            'trial_enabled': self.trial_enabled if self.trial_enabled is not None else False,
+            'trial_days': self.trial_days if self.trial_days is not None else 0,
+            'grace_period_days': self.grace_period_days if self.grace_period_days is not None else 3,
+            'max_retry_attempts': self.max_retry_attempts if self.max_retry_attempts is not None else 3,
+            'cancellation_behavior': self.cancellation_behavior or 'end_of_period',
+            # Features and limits
             'features': features_list,
             'feature_toggles': self.get_feature_toggles(),
             'limits': self.get_limits(),
@@ -626,10 +643,11 @@ class PaymentGateway(db.Model):
     __tablename__ = 'payment_gateways'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique=True)  # 'paypal', 'stripe'
+    name = db.Column(db.String(50), nullable=False, unique=True)  # 'paypal', 'stripe', 'google_pay', 'apple_pay'
     display_name = db.Column(db.String(100), nullable=False)  # 'PayPal', 'Stripe'
     description = db.Column(db.Text)
     icon = db.Column(db.String(100))  # Icon class or emoji
+    gateway_type = db.Column(db.String(20), default='gateway')  # 'gateway' or 'wallet'
 
     # API Credentials (encrypted in production)
     api_key = db.Column(db.String(500))  # Public key / Client ID
@@ -653,11 +671,25 @@ class PaymentGateway(db.Model):
     stripe_sandbox_publishable_key = db.Column(db.String(500))
     stripe_sandbox_secret_key = db.Column(db.String(500))
 
+    # Wallet configuration (Google Pay / Apple Pay work through Stripe)
+    supports_google_pay = db.Column(db.Boolean, default=False)
+    supports_apple_pay = db.Column(db.Boolean, default=False)
+    google_pay_merchant_id = db.Column(db.String(255))
+    apple_pay_merchant_id = db.Column(db.String(255))
+    apple_pay_domain_verification = db.Column(db.Text)  # Domain verification file content
+
+    # Recurring payment support
+    supports_recurring = db.Column(db.Boolean, default=True)
+    supports_tokenization = db.Column(db.Boolean, default=True)
+
     # Settings
     is_active = db.Column(db.Boolean, default=False)
     display_order = db.Column(db.Integer, default=0)
     supported_currencies = db.Column(db.Text, default='USD,EUR,GBP')  # Comma-separated
     transaction_fee_percent = db.Column(db.Float, default=0)  # Platform fee percentage
+
+    # Minimum amount for payment (to prevent micro-transactions)
+    min_amount = db.Column(db.Numeric(10, 2), default=0.50)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -713,7 +745,11 @@ class PaymentGateway(db.Model):
             'display_name': self.display_name,
             'description': self.description,
             'icon': self.icon,
-            'is_active': self.is_active
+            'gateway_type': self.gateway_type or 'gateway',
+            'is_active': self.is_active,
+            'supports_recurring': self.supports_recurring,
+            'supports_google_pay': self.supports_google_pay,
+            'supports_apple_pay': self.supports_apple_pay
         }
         # Only include public keys for frontend
         if self.name == 'stripe':
@@ -721,6 +757,8 @@ class PaymentGateway(db.Model):
                 result['publishable_key'] = self.stripe_sandbox_publishable_key
             else:
                 result['publishable_key'] = self.stripe_publishable_key
+            result['google_pay_merchant_id'] = self.google_pay_merchant_id
+            result['apple_pay_merchant_id'] = self.apple_pay_merchant_id
         elif self.name == 'paypal':
             if self.is_sandbox:
                 result['client_id'] = self.paypal_sandbox_client_id
@@ -772,6 +810,261 @@ class PaymentTransaction(db.Model):
             'currency': self.currency,
             'status': self.status,
             'subscription_months': self.subscription_months,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+        }
+
+
+# Subscription Status Enum-like constants
+class SubscriptionStatus:
+    NONE = 'none'
+    TRIALING = 'trialing'
+    ACTIVE = 'active'
+    PAYMENT_PENDING = 'payment_pending'
+    PAYMENT_FAILED = 'payment_failed'
+    SUSPENDED = 'suspended'
+    CANCELLED = 'cancelled'
+    EXPIRED = 'expired'
+
+
+class Subscription(db.Model):
+    """Restaurant subscription management with trial support"""
+    __tablename__ = 'subscriptions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(50), unique=True)  # UUID for external reference
+
+    # Relationships
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    pricing_plan_id = db.Column(db.Integer, db.ForeignKey('pricing_plans.id'), nullable=False)
+
+    # Status
+    status = db.Column(db.String(20), default=SubscriptionStatus.NONE)  # none, trialing, active, etc.
+
+    # Trial Dates
+    trial_start_date = db.Column(db.DateTime, nullable=True)
+    trial_end_date = db.Column(db.DateTime, nullable=True)
+
+    # Billing Period
+    current_period_start = db.Column(db.DateTime, nullable=True)
+    current_period_end = db.Column(db.DateTime, nullable=True)
+    next_billing_date = db.Column(db.DateTime, nullable=True)
+
+    # Cancellation
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+    cancel_at_period_end = db.Column(db.Boolean, default=False)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    cancellation_reason = db.Column(db.Text, nullable=True)
+
+    # Payment Method Reference (tokenized, NOT raw card data)
+    payment_method_id = db.Column(db.String(255), nullable=True)  # Gateway token
+    payment_gateway = db.Column(db.String(50), nullable=True)  # stripe, paypal, etc.
+    payment_method_last4 = db.Column(db.String(4), nullable=True)  # Last 4 digits for display
+    payment_method_brand = db.Column(db.String(50), nullable=True)  # visa, mastercard, paypal
+    payment_method_expiry = db.Column(db.String(7), nullable=True)  # MM/YYYY format
+
+    # Billing Details (locked at subscription time)
+    billing_country_code = db.Column(db.String(5), nullable=True)
+    billing_currency = db.Column(db.String(10), default='USD')
+    billing_amount = db.Column(db.Numeric(10, 2), nullable=True)  # Price locked at subscription
+    billing_interval = db.Column(db.String(20), default='month')  # month, year
+
+    # Retry Tracking
+    failed_payment_count = db.Column(db.Integer, default=0)
+    last_payment_attempt = db.Column(db.DateTime, nullable=True)
+    next_retry_date = db.Column(db.DateTime, nullable=True)
+    grace_period_end = db.Column(db.DateTime, nullable=True)
+
+    # Consent & Compliance
+    consent_timestamp = db.Column(db.DateTime, nullable=True)
+    consent_ip_address = db.Column(db.String(45), nullable=True)  # IPv6 compatible
+    terms_version = db.Column(db.String(20), nullable=True)  # e.g., "v2.1"
+    consent_method = db.Column(db.String(50), nullable=True)  # checkbox, button, etc.
+
+    # Metadata
+    extra_data = db.Column(db.Text, nullable=True)  # JSON for gateway-specific data
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    restaurant = db.relationship('Restaurant', backref=db.backref('subscriptions', lazy='dynamic'))
+    pricing_plan = db.relationship('PricingPlan', backref=db.backref('subscriptions', lazy='dynamic'))
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.public_id:
+            import uuid
+            self.public_id = str(uuid.uuid4())
+
+    @property
+    def is_active(self):
+        """Check if subscription grants full access"""
+        return self.status in [SubscriptionStatus.TRIALING, SubscriptionStatus.ACTIVE,
+                               SubscriptionStatus.PAYMENT_PENDING]
+
+    @property
+    def is_trialing(self):
+        """Check if currently in trial"""
+        return self.status == SubscriptionStatus.TRIALING
+
+    @property
+    def is_cancelled(self):
+        """Check if subscription is cancelled"""
+        return self.status == SubscriptionStatus.CANCELLED or self.cancel_at_period_end
+
+    @property
+    def days_until_trial_end(self):
+        """Get days remaining in trial"""
+        if not self.is_trialing or not self.trial_end_date:
+            return 0
+        delta = self.trial_end_date - datetime.utcnow()
+        return max(0, delta.days)
+
+    @property
+    def days_until_renewal(self):
+        """Get days until next billing"""
+        if not self.next_billing_date:
+            return None
+        delta = self.next_billing_date - datetime.utcnow()
+        return max(0, delta.days)
+
+    def can_cancel(self):
+        """Check if subscription can be cancelled"""
+        return self.status in [SubscriptionStatus.TRIALING, SubscriptionStatus.ACTIVE,
+                               SubscriptionStatus.PAYMENT_PENDING, SubscriptionStatus.PAYMENT_FAILED]
+
+    def to_dict(self):
+        return {
+            'id': self.public_id,
+            'restaurant_id': self.restaurant_id,
+            'plan_id': self.pricing_plan_id,
+            'plan_name': self.pricing_plan.name if self.pricing_plan else None,
+            'status': self.status,
+            'is_active': self.is_active,
+            'is_trialing': self.is_trialing,
+            'trial_start_date': self.trial_start_date.isoformat() if self.trial_start_date else None,
+            'trial_end_date': self.trial_end_date.isoformat() if self.trial_end_date else None,
+            'days_until_trial_end': self.days_until_trial_end,
+            'current_period_start': self.current_period_start.isoformat() if self.current_period_start else None,
+            'current_period_end': self.current_period_end.isoformat() if self.current_period_end else None,
+            'next_billing_date': self.next_billing_date.isoformat() if self.next_billing_date else None,
+            'cancelled_at': self.cancelled_at.isoformat() if self.cancelled_at else None,
+            'cancel_at_period_end': self.cancel_at_period_end,
+            'payment_method': {
+                'last4': self.payment_method_last4,
+                'brand': self.payment_method_brand,
+                'expiry': self.payment_method_expiry
+            } if self.payment_method_id else None,
+            'billing_amount': float(self.billing_amount) if self.billing_amount else None,
+            'billing_currency': self.billing_currency,
+            'billing_interval': self.billing_interval,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class SubscriptionEvent(db.Model):
+    """Audit log for subscription lifecycle events"""
+    __tablename__ = 'subscription_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'), nullable=False)
+
+    # Event Type
+    event_type = db.Column(db.String(50), nullable=False)
+    # Types: created, trial_started, trial_ending_soon, trial_ended,
+    #        payment_method_added, payment_method_updated, payment_method_removed,
+    #        charged, payment_failed, retry_scheduled, retry_success,
+    #        cancelled, reactivated, upgraded, downgraded, suspended, expired
+
+    event_data = db.Column(db.Text, nullable=True)  # JSON payload with context
+    triggered_by = db.Column(db.String(50), default='system')  # user, system, admin, webhook
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # If triggered by user
+
+    ip_address = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime, nullable=True)  # For async processing
+
+    # Relationships
+    subscription = db.relationship('Subscription', backref=db.backref('events', lazy='dynamic', order_by='SubscriptionEvent.created_at.desc()'))
+    user = db.relationship('User', backref='subscription_events')
+
+    def to_dict(self):
+        import json
+        event_data = None
+        if self.event_data:
+            try:
+                event_data = json.loads(self.event_data)
+            except:
+                event_data = self.event_data
+
+        return {
+            'id': self.id,
+            'subscription_id': self.subscription_id,
+            'event_type': self.event_type,
+            'event_data': event_data,
+            'triggered_by': self.triggered_by,
+            'user': self.user.username if self.user else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class ScheduledBillingJob(db.Model):
+    """Scheduled jobs for billing operations"""
+    __tablename__ = 'scheduled_billing_jobs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'), nullable=False)
+
+    # Job Type
+    job_type = db.Column(db.String(50), nullable=False)
+    # Types: trial_end_charge, renewal, retry, trial_ending_reminder,
+    #        payment_reminder, suspension_warning
+
+    scheduled_for = db.Column(db.DateTime, nullable=False)
+
+    # Status
+    status = db.Column(db.String(20), default='pending')  # pending, processing, completed, failed, cancelled
+
+    # Execution tracking
+    attempts = db.Column(db.Integer, default=0)
+    max_attempts = db.Column(db.Integer, default=1)
+    last_attempt_at = db.Column(db.DateTime, nullable=True)
+
+    # Results
+    error_message = db.Column(db.Text, nullable=True)
+    result_data = db.Column(db.Text, nullable=True)  # JSON result
+
+    # Metadata
+    job_data = db.Column(db.Text, nullable=True)  # JSON with job-specific params
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    # Relationships
+    subscription = db.relationship('Subscription', backref=db.backref('billing_jobs', lazy='dynamic'))
+
+    def to_dict(self):
+        import json
+        job_data = None
+        if self.job_data:
+            try:
+                job_data = json.loads(self.job_data)
+            except:
+                job_data = self.job_data
+
+        return {
+            'id': self.id,
+            'subscription_id': self.subscription_id,
+            'job_type': self.job_type,
+            'scheduled_for': self.scheduled_for.isoformat() if self.scheduled_for else None,
+            'status': self.status,
+            'attempts': self.attempts,
+            'max_attempts': self.max_attempts,
+            'error_message': self.error_message,
+            'job_data': job_data,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }

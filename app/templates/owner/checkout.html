@@ -6,21 +6,25 @@
     <title>Checkout - {{ plan.name }} Plan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <!-- PayPal SDK - loaded dynamically if PayPal is active -->
     <style>
         :root {
-            --bg-dark: #0a0a0f;
-            --bg-card: #12121a;
-            --bg-card-hover: #1a1a25;
-            --border: #1f1f2e;
-            --text-primary: #ffffff;
-            --text-secondary: #8b8b9e;
-            --text-muted: #5a5a6e;
+            --bg-dark: #ffffff;
+            --bg-card: #f9fafb;
+            --bg-card-hover: #f3f4f6;
+            --border: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
             --accent-primary: #6366f1;
             --accent-primary-glow: rgba(99, 102, 241, 0.2);
             --accent-green: #22c55e;
             --accent-green-bg: rgba(34, 197, 94, 0.1);
             --accent-blue: #3b82f6;
             --accent-orange: #f97316;
+            --accent-red: #ef4444;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -36,7 +40,7 @@
         }
 
         .checkout-container {
-            max-width: 900px;
+            max-width: 960px;
             width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -68,8 +72,20 @@
             margin-bottom: 8px;
         }
 
-        .checkout-header p {
-            color: var(--text-secondary);
+        .checkout-header p { color: var(--text-secondary); }
+
+        /* Trial Badge */
+        .trial-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #22c55e, #059669);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 16px;
         }
 
         .order-summary {
@@ -95,272 +111,143 @@
             margin-bottom: 24px;
         }
 
-        .plan-name {
-            font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
+        .plan-name { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+        .plan-price { font-size: 32px; font-weight: 800; color: var(--accent-primary); }
+        .plan-price span { font-size: 16px; font-weight: 500; color: var(--text-secondary); }
 
-        .plan-price {
-            font-size: 36px;
-            font-weight: 800;
-            color: var(--accent-primary);
-        }
-
-        .plan-price span {
-            font-size: 16px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .plan-features {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(99, 102, 241, 0.2);
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            padding: 6px 0;
-        }
-
-        .feature-item i.bi-check-circle-fill { color: var(--accent-green); }
-        .feature-item i.bi-x-circle-fill { color: var(--text-muted); }
+        .plan-features { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .feature-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-secondary); }
+        .feature-item i { color: var(--accent-green); }
 
         .order-total {
-            display: flex;
-            justify-content: space-between;
-            padding: 16px 0;
-            border-top: 1px solid var(--border);
-            margin-top: 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 0; border-top: 1px solid var(--border); margin-top: 16px;
         }
+        .order-total .label { font-weight: 600; color: var(--text-secondary); }
+        .order-total .amount { font-size: 24px; font-weight: 800; color: var(--accent-green); }
 
-        .order-total .label {
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .order-total .amount {
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--accent-green);
-        }
-
+        /* Payment Section */
+        .payment-section { display: flex; flex-direction: column; gap: 20px; }
         .payment-section h3 {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 20px;
+            font-size: 16px; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
         }
 
-        .gateway-options {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 24px;
+        /* Payment Method Tabs */
+        .payment-tabs {
+            display: flex; gap: 12px; flex-wrap: wrap;
         }
 
-        .gateway-option {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 20px;
-            background: var(--bg-card-hover);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            cursor: pointer;
+        .payment-tab {
+            flex: 1; min-width: 120px; padding: 16px;
+            background: var(--bg-card-hover); border: 2px solid var(--border);
+            border-radius: 12px; cursor: pointer; text-align: center;
             transition: all 0.2s;
         }
 
-        .gateway-option:hover {
-            border-color: var(--accent-primary);
+        .payment-tab:hover { border-color: var(--accent-primary); }
+        .payment-tab.active { border-color: var(--accent-primary); background: rgba(99, 102, 241, 0.1); }
+
+        .payment-tab-icon { font-size: 28px; margin-bottom: 8px; }
+        .payment-tab-name { font-weight: 700; font-size: 14px; }
+        .payment-tab-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        /* Stripe Card Element */
+        #card-element {
+            background: var(--bg-dark); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px;
         }
 
-        .gateway-option.selected {
-            border-color: var(--accent-primary);
-            background: rgba(99, 102, 241, 0.1);
+        #card-errors { color: var(--accent-red); font-size: 13px; margin-top: 8px; }
+
+        /* Payment Request Button (Google Pay / Apple Pay) */
+        #payment-request-button { margin-bottom: 16px; }
+        .payment-request-available { text-align: center; margin-bottom: 16px; }
+        .or-divider {
+            display: flex; align-items: center; gap: 16px;
+            color: var(--text-muted); font-size: 12px; margin: 16px 0;
+        }
+        .or-divider::before, .or-divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--border);
         }
 
-        .gateway-option input {
-            display: none;
-        }
-
-        .gateway-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .gateway-icon.paypal {
-            background: linear-gradient(135deg, #003087, #009cde);
-            color: white;
-        }
-
-        .gateway-icon.stripe {
-            background: linear-gradient(135deg, #635bff, #7a73ff);
-            color: white;
-        }
-
-        .gateway-info {
-            flex: 1;
-        }
-
-        .gateway-name {
-            font-weight: 700;
-            font-size: 16px;
-            margin-bottom: 4px;
-        }
-
-        .gateway-desc {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .gateway-check {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .gateway-option.selected .gateway-check {
-            background: var(--accent-primary);
-            border-color: var(--accent-primary);
-        }
-
-        .gateway-option.selected .gateway-check i {
-            color: white;
-        }
+        /* PayPal Container */
+        #paypal-button-container { min-height: 55px; }
 
         .btn-pay {
-            width: 100%;
-            padding: 18px;
+            width: 100%; padding: 18px;
             background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            color: white; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;
         }
 
-        .btn-pay:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-pay:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        .btn-pay:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3); }
+        .btn-pay:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         .secure-badge {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 16px;
-            color: var(--text-muted);
-            font-size: 13px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 16px; color: var(--text-muted); font-size: 13px;
         }
-
-        .secure-badge i {
-            color: var(--accent-green);
-        }
+        .secure-badge i { color: var(--accent-green); }
 
         .back-link {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding-top: 24px;
-            border-top: 1px solid var(--border);
+            grid-column: 1 / -1; text-align: center;
+            padding-top: 24px; border-top: 1px solid var(--border);
         }
-
         .back-link a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            color: var(--text-secondary); text-decoration: none; font-size: 14px;
+            display: inline-flex; align-items: center; gap: 8px;
         }
-
-        .back-link a:hover {
-            color: var(--accent-primary);
-        }
+        .back-link a:hover { color: var(--accent-primary); }
 
         .no-gateways {
-            text-align: center;
-            padding: 40px 20px;
-            background: var(--bg-card-hover);
-            border-radius: 12px;
-            margin-bottom: 24px;
+            text-align: center; padding: 40px 20px;
+            background: var(--bg-card-hover); border-radius: 12px; margin-bottom: 24px;
         }
-
-        .no-gateways i {
-            font-size: 48px;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-        }
-
-        .no-gateways h4 {
-            margin-bottom: 8px;
-        }
-
-        .no-gateways p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
+        .no-gateways i { font-size: 48px; color: var(--text-muted); margin-bottom: 16px; }
 
         .sandbox-notice {
-            background: rgba(249, 115, 22, 0.1);
-            border: 1px solid var(--accent-orange);
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
-            color: var(--accent-orange);
+            background: rgba(249, 115, 22, 0.1); border: 1px solid var(--accent-orange);
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 13px; color: var(--accent-orange);
         }
+
+        .loading-spinner {
+            display: inline-block; width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+            border-top-color: white; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Payment form sections */
+        .payment-form-section { display: none; }
+        .payment-form-section.active { display: block; }
     </style>
 </head>
 <body>
     <div class="checkout-container">
         <div class="checkout-header">
-            <h1><i class="bi bi-credit-card-2-front me-2"></i>Secure Checkout</h1>
+            <h1><i class="bi bi-shield-lock me-2"></i>Secure Checkout</h1>
             <p>Complete your subscription to {{ plan.name }}</p>
+            {% if plan.trial_enabled and plan.trial_days > 0 %}
+            <div class="trial-badge">
+                <i class="bi bi-gift"></i>
+                {{ plan.trial_days }}-Day Free Trial Included
+            </div>
+            {% endif %}
         </div>
 
         <!-- Order Summary -->
         <div class="order-summary">
             <h3><i class="bi bi-receipt me-2"></i>Order Summary</h3>
 
-            <!-- Country/Pricing Info -->
             <div style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px;">
                 <i class="bi bi-globe2" style="color: var(--accent-primary);"></i>
                 <span>Pricing for <strong>{{ country_info.country_name }}</strong></span>
                 {% if country_info.discount_percent > 0 %}
-                <span style="color: var(--accent-green); margin-left: auto;">{{ country_info.discount_percent }}% discount applied</span>
+                <span style="color: var(--accent-green); margin-left: auto;">{{ country_info.discount_percent }}% off</span>
                 {% endif %}
             </div>
 
@@ -370,44 +257,53 @@
 
                 <div class="plan-features">
                     {% if plan.has_kitchen_display %}
-                    <div class="feature-item">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>Kitchen Display</span>
-                    </div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i><span>Kitchen Display</span></div>
                     {% endif %}
                     {% if plan.has_customer_display %}
-                    <div class="feature-item">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>Customer Display</span>
-                    </div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i><span>Customer Display</span></div>
                     {% endif %}
                     {% if plan.has_advanced_analytics %}
-                    <div class="feature-item">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>Advanced Analytics</span>
-                    </div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i><span>Advanced Analytics</span></div>
                     {% endif %}
-                    {% if plan.has_priority_support %}
-                    <div class="feature-item">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>Priority Support</span>
-                    </div>
-                    {% endif %}
-                    <div class="feature-item">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>{{ plan.max_tables or 'Unlimited' }} Tables</span>
-                    </div>
-                    <div class="feature-item">
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>{{ plan.max_menu_items or 'Unlimited' }} Menu Items</span>
-                    </div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i><span>{{ plan.max_tables or 'Unlimited' }} Tables</span></div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i><span>{{ plan.max_menu_items or 'Unlimited' }} Menu Items</span></div>
                 </div>
             </div>
 
             <div class="order-total">
-                <span class="label">Total Due Today</span>
+                <span class="label">
+                    {% if plan.trial_enabled and plan.trial_days > 0 %}
+                    Due after {{ plan.trial_days }}-day trial
+                    {% else %}
+                    Total Due Today
+                    {% endif %}
+                </span>
                 <span class="amount">${{ "%.2f"|format(plan_price) }}</span>
             </div>
+
+            {% if plan.trial_enabled and plan.trial_days > 0 %}
+            <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(5, 150, 105, 0.15)); border: 2px solid var(--accent-green); border-radius: 12px; padding: 16px; margin-top: 16px; font-size: 14px; color: var(--text-primary);">
+                <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 8px;">
+                    <i class="bi bi-shield-check" style="color: var(--accent-green); font-size: 24px;"></i>
+                    <div>
+                        <div style="font-weight: 700; margin-bottom: 4px;">✅ No Charge Today</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            Your payment method will be saved securely but <strong>NOT charged</strong> during the {{ plan.trial_days }}-day trial period.
+                        </div>
+                    </div>
+                </div>
+                <div style="padding-left: 36px; font-size: 13px; color: var(--text-secondary);">
+                    • First charge occurs: <strong>{{ plan.trial_days }} days from today</strong><br>
+                    • Cancel anytime during trial: <strong>No charge, ever</strong><br>
+                    • After trial: <strong>${{ "%.2f"|format(plan_price) }}/{{ plan.price_period }}</strong>
+                </div>
+            </div>
+            {% else %}
+            <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid var(--accent-primary); border-radius: 8px; padding: 12px 16px; margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
+                <i class="bi bi-info-circle me-2"></i>
+                Your payment method will be charged immediately and set up for automatic recurring billing.
+            </div>
+            {% endif %}
         </div>
 
         <!-- Payment Section -->
@@ -415,45 +311,98 @@
             <h3><i class="bi bi-wallet2 me-2"></i>Payment Method</h3>
 
             {% if gateways %}
-                {% for gateway in gateways %}
+                <!-- Sandbox Notice -->
+                {% set sandbox_shown = namespace(value=False) %}
+                {% for gateway in gateways if not sandbox_shown.value %}
                     {% if gateway.is_sandbox %}
                     <div class="sandbox-notice">
                         <i class="bi bi-exclamation-triangle-fill"></i>
-                        <span>{{ gateway.display_name }} is in sandbox/test mode. No real charges will be made.</span>
+                        <span>Test mode active - no real charges</span>
                     </div>
+                    {% set sandbox_shown.value = True %}
                     {% endif %}
                 {% endfor %}
 
-                <form method="POST" action="{{ url_for('owner.process_payment', plan_id=plan.id) }}" id="paymentForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <div class="gateway-options">
-                        {% for gateway in gateways %}
-                        <label class="gateway-option" onclick="selectGateway('{{ gateway.name }}', this)">
-                            <input type="radio" name="gateway" value="{{ gateway.name }}" {% if loop.first %}checked{% endif %}>
-                            <div class="gateway-icon {{ gateway.name }}">
-                                <i class="bi {{ gateway.icon or 'bi-credit-card' }}"></i>
-                            </div>
-                            <div class="gateway-info">
-                                <div class="gateway-name">{{ gateway.display_name }}</div>
-                                <div class="gateway-desc">{{ gateway.description }}</div>
-                            </div>
-                            <div class="gateway-check">
-                                <i class="bi bi-check" style="display: none;"></i>
-                            </div>
-                        </label>
-                        {% endfor %}
+                <!-- Payment Method Tabs -->
+                <div class="payment-tabs">
+                    {% for gateway in gateways %}
+                    <div class="payment-tab {% if loop.first %}active{% endif %}"
+                         data-gateway="{{ gateway.name }}" onclick="selectPaymentMethod('{{ gateway.name }}', this)">
+                        <div class="payment-tab-icon">
+                            {% if gateway.name == 'stripe' %}
+                            💳
+                            {% elif gateway.name == 'paypal' %}
+                            <i class="bi bi-paypal" style="color: #003087;"></i>
+                            {% else %}
+                            <i class="bi {{ gateway.icon or 'bi-credit-card' }}"></i>
+                            {% endif %}
+                        </div>
+                        <div class="payment-tab-name">
+                            {% if gateway.name == 'stripe' %}
+                            Card
+                            {% else %}
+                            {{ gateway.display_name }}
+                            {% endif %}
+                        </div>
+                        {% if gateway.name == 'stripe' and (gateway.supports_google_pay or gateway.supports_apple_pay) %}
+                        <div class="payment-tab-desc">
+                            + Google Pay / Apple Pay
+                        </div>
+                        {% endif %}
                     </div>
+                    {% endfor %}
+                </div>
 
-                    <button type="submit" class="btn-pay">
+                <!-- Stripe Payment Form -->
+                {% for gateway in gateways %}
+                {% if gateway.name == 'stripe' %}
+                <div id="stripe-form" class="payment-form-section {% if loop.first %}active{% endif %}">
+                    <!-- Payment Request Button (Google Pay / Apple Pay) -->
+                    <div id="payment-request-button"></div>
+                    <div id="payment-request-divider" class="or-divider" style="display: none;">or pay with card</div>
+
+                    <!-- Card Element -->
+                    <div id="card-element"></div>
+                    <div id="card-errors" role="alert"></div>
+
+                    <button type="button" class="btn-pay" id="stripe-submit" onclick="handleStripePayment()">
                         <i class="bi bi-lock-fill"></i>
-                        Pay ${{ "%.2f"|format(plan_price) }} Now
+                        <span id="stripe-btn-text">
+                            {% if plan.trial_enabled and plan.trial_days > 0 %}
+                            Start {{ plan.trial_days }}-Day Free Trial
+                            {% else %}
+                            Complete Payment - ${{ "%.2f"|format(plan_price) }}
+                            {% endif %}
+                        </span>
                     </button>
-                </form>
+
+                    {% if plan.trial_enabled and plan.trial_days > 0 %}
+                    <div style="text-align: center; margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+                        <i class="bi bi-shield-check" style="color: var(--accent-green);"></i>
+                        No payment required today • Cancel anytime during trial
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if gateway.name == 'paypal' %}
+                <div id="paypal-form" class="payment-form-section">
+                    <div id="paypal-button-container"></div>
+                    <div id="paypal-not-configured" style="display: none; text-align: center; padding: 40px 20px; background: var(--bg-card-hover); border-radius: 12px; margin: 20px 0;">
+                        <i class="bi bi-credit-card-2-front" style="font-size: 48px; color: var(--text-muted); display: block; margin-bottom: 16px;"></i>
+                        <h4 style="margin-bottom: 8px; color: var(--text-primary);">PayPal Not Configured</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+                            PayPal payment method is not available at this time.<br>
+                            Please use card payment or contact support.
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
 
                 <div class="secure-badge">
                     <i class="bi bi-shield-check"></i>
-                    <span>256-bit SSL Encrypted • Secure Payment</span>
+                    <span>256-bit SSL Encrypted • PCI Compliant • Secure Payment</span>
                 </div>
             {% else %}
                 <div class="no-gateways">
@@ -473,28 +422,370 @@
     </div>
 
     <script>
-        // Initialize first gateway as selected
-        document.addEventListener('DOMContentLoaded', function() {
-            const firstGateway = document.querySelector('.gateway-option');
-            if (firstGateway) {
-                firstGateway.classList.add('selected');
-                firstGateway.querySelector('.gateway-check i').style.display = 'block';
+        // Payment configuration from server
+        const paymentConfig = {
+            planId: {{ plan.id }},
+            planName: "{{ plan.name }}",
+            amount: {{ plan_price }},
+            currency: "{{ plan.currency|default('USD')|lower }}",
+            hasTrial: {{ 'true' if plan.trial_enabled and plan.trial_days > 0 else 'false' }},
+            trialDays: {{ plan.trial_days or 0 }},
+            gateways: {
+                {% for gateway in gateways %}
+                {% if gateway.name == 'stripe' %}
+                "stripe": {
+                    {% if gateway.get('publishable_key') %}
+                    publishableKey: "{{ gateway.publishable_key }}",
+                    {% endif %}
+                    supportsGooglePay: {{ 'true' if gateway.get('supports_google_pay') else 'false' }},
+                    supportsApplePay: {{ 'true' if gateway.get('supports_apple_pay') else 'false' }}
+                }{% if not loop.last %},{% endif %}
+                {% elif gateway.name == 'paypal' %}
+                "paypal": {
+                    {% if gateway.get('client_id') %}
+                    clientId: "{{ gateway.client_id }}"
+                    {% endif %}
+                }{% if not loop.last %},{% endif %}
+                {% endif %}
+                {% endfor %}
             }
-        });
+        };
 
-        function selectGateway(name, element) {
-            // Remove selected from all
-            document.querySelectorAll('.gateway-option').forEach(opt => {
-                opt.classList.remove('selected');
-                opt.querySelector('.gateway-check i').style.display = 'none';
+        let stripe, elements, cardElement, paymentRequest;
+        let currentGateway = '{{ gateways[0].name if gateways and gateways|length > 0 else "" }}';
+
+        // Initialize Stripe
+        function initStripe() {
+            try {
+                const stripeConfig = paymentConfig.gateways.stripe;
+                if (!stripeConfig || !stripeConfig.publishableKey) {
+                    console.log('Stripe not configured');
+                    return;
+                }
+
+                stripe = Stripe(stripeConfig.publishableKey);
+                elements = stripe.elements();
+
+                // Create Card Element
+                const style = {
+                    base: {
+                        color: '#ffffff',
+                        fontFamily: 'Inter, sans-serif',
+                        fontSize: '16px',
+                        '::placeholder': { color: '#5a5a6e' }
+                    },
+                    invalid: { color: '#ef4444' }
+                };
+
+                cardElement = elements.create('card', { style: style });
+                cardElement.mount('#card-element');
+
+                cardElement.on('change', function(event) {
+                    const displayError = document.getElementById('card-errors');
+                    if (displayError) {
+                        displayError.textContent = event.error ? event.error.message : '';
+                    }
+                });
+
+                // Initialize Payment Request (Google Pay / Apple Pay)
+                if (stripeConfig.supportsGooglePay || stripeConfig.supportsApplePay) {
+                    initPaymentRequest();
+                }
+            } catch (error) {
+                console.error('Stripe initialization error:', error);
+            }
+        }
+
+        // Initialize Payment Request Button (Google Pay / Apple Pay)
+        function initPaymentRequest() {
+            paymentRequest = stripe.paymentRequest({
+                country: 'US',
+                currency: paymentConfig.currency,
+                total: {
+                    label: paymentConfig.planName + ' Plan',
+                    amount: Math.round(paymentConfig.amount * 100)
+                },
+                requestPayerName: true,
+                requestPayerEmail: true
             });
 
-            // Add selected to clicked
-            element.classList.add('selected');
-            element.querySelector('.gateway-check i').style.display = 'block';
-            element.querySelector('input').checked = true;
+            const prButton = elements.create('paymentRequestButton', {
+                paymentRequest: paymentRequest,
+                style: {
+                    paymentRequestButton: {
+                        type: 'default',
+                        theme: 'dark',
+                        height: '48px'
+                    }
+                }
+            });
+
+            // Check if Payment Request is available
+            paymentRequest.canMakePayment().then(function(result) {
+                if (result) {
+                    prButton.mount('#payment-request-button');
+                    document.getElementById('payment-request-divider').style.display = 'flex';
+                }
+            });
+
+            // Handle payment request completion
+            paymentRequest.on('paymentmethod', async function(ev) {
+                try {
+                    const response = await fetch('/owner/create-payment-intent/' + paymentConfig.planId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ payment_method_id: ev.paymentMethod.id })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.error) {
+                        ev.complete('fail');
+                        showError(result.error);
+                    } else {
+                        ev.complete('success');
+                        window.location.href = result.redirect_url || '/owner/settings';
+                    }
+                } catch (error) {
+                    ev.complete('fail');
+                    showError(error.message);
+                }
+            });
         }
+
+        // Handle Stripe card payment
+        async function handleStripePayment() {
+            const submitBtn = document.getElementById('stripe-submit');
+            const btnText = document.getElementById('stripe-btn-text');
+
+            submitBtn.disabled = true;
+            btnText.innerHTML = '<span class="loading-spinner"></span> Processing...';
+
+            try {
+                // Create SetupIntent for trial or PaymentIntent for immediate charge
+                const endpoint = paymentConfig.hasTrial
+                    ? '/owner/create-setup-intent/' + paymentConfig.planId
+                    : '/owner/create-payment-intent/' + paymentConfig.planId;
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    submitBtn.disabled = false;
+                    btnText.textContent = paymentConfig.hasTrial ? `Start ${paymentConfig.trialDays}-Day Free Trial` : 'Complete Payment - $' + paymentConfig.amount.toFixed(2);
+                    return;
+                }
+
+                // Confirm the card setup/payment
+                let result;
+                if (paymentConfig.hasTrial) {
+                    result = await stripe.confirmCardSetup(data.client_secret, {
+                        payment_method: { card: cardElement }
+                    });
+                } else {
+                    result = await stripe.confirmCardPayment(data.client_secret, {
+                        payment_method: { card: cardElement }
+                    });
+                }
+
+                if (result.error) {
+                    showError(result.error.message);
+                    submitBtn.disabled = false;
+                    btnText.textContent = paymentConfig.hasTrial ? `Start ${paymentConfig.trialDays}-Day Free Trial` : 'Complete Payment - $' + paymentConfig.amount.toFixed(2);
+                } else {
+                    // Confirm with server
+                    const confirmResponse = await fetch('/owner/confirm-payment/' + paymentConfig.planId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            gateway: 'stripe',
+                            payment_intent_id: paymentConfig.hasTrial ? result.setupIntent.id : result.paymentIntent.id,
+                            payment_method_id: result.setupIntent?.payment_method || result.paymentIntent?.payment_method
+                        })
+                    });
+
+                    const confirmData = await confirmResponse.json();
+                    if (confirmData.success) {
+                        window.location.href = confirmData.redirect_url || '/owner/settings';
+                    } else {
+                        showError(confirmData.error || 'Payment confirmation failed');
+                        submitBtn.disabled = false;
+                        btnText.textContent = paymentConfig.hasTrial ? `Start ${paymentConfig.trialDays}-Day Free Trial` : 'Complete Payment - $' + paymentConfig.amount.toFixed(2);
+                    }
+                }
+            } catch (error) {
+                showError(error.message || 'Payment processing error');
+                submitBtn.disabled = false;
+                btnText.textContent = paymentConfig.hasTrial ? `Start ${paymentConfig.trialDays}-Day Free Trial` : 'Complete Payment - $' + paymentConfig.amount.toFixed(2);
+            }
+        }
+
+        // Initialize PayPal
+        function initPayPal() {
+            try {
+                const paypalConfig = paymentConfig.gateways.paypal;
+                if (!paypalConfig || !paypalConfig.clientId) {
+                    console.log('PayPal not configured - showing message');
+                    const buttonContainer = document.getElementById('paypal-button-container');
+                    const notConfiguredMsg = document.getElementById('paypal-not-configured');
+                    if (buttonContainer) buttonContainer.style.display = 'none';
+                    if (notConfiguredMsg) notConfiguredMsg.style.display = 'block';
+                    return;
+                }
+
+                // Load PayPal SDK
+                const script = document.createElement('script');
+                script.src = 'https://www.paypal.com/sdk/js?client-id=' + paypalConfig.clientId + '&vault=true&intent=subscription';
+                script.setAttribute('data-sdk-integration-source', 'button-factory');
+                script.onerror = function() {
+                    console.error('Failed to load PayPal SDK');
+                    const buttonContainer = document.getElementById('paypal-button-container');
+                    const notConfiguredMsg = document.getElementById('paypal-not-configured');
+                    if (buttonContainer) buttonContainer.style.display = 'none';
+                    if (notConfiguredMsg) notConfiguredMsg.style.display = 'block';
+                };
+                script.onload = function() {
+                    try {
+                        paypal.Buttons({
+                            style: {
+                                shape: 'rect',
+                                color: 'blue',
+                                layout: 'vertical',
+                                label: 'subscribe'
+                            },
+                            createSubscription: async function(data, actions) {
+                                try {
+                                    const response = await fetch('/owner/paypal/create-subscription/' + paymentConfig.planId, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        credentials: 'same-origin'
+                                    });
+
+                                    if (!response.ok) {
+                                        const errorText = await response.text();
+                                        console.error('PayPal subscription creation failed:', errorText);
+                                        throw new Error('Failed to create subscription. Please try again.');
+                                    }
+
+                                    const result = await response.json();
+
+                                    // Handle demo mode
+                                    if (result.demo_mode) {
+                                        alert('Demo Mode: PayPal is not configured.\n\n' + result.message + '\n\nProceeding with demo subscription...');
+                                        // Auto-confirm demo subscription
+                                        setTimeout(async () => {
+                                            const confirmResponse = await fetch('/owner/paypal/confirm-subscription/' + paymentConfig.planId, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'X-Requested-With': 'XMLHttpRequest'
+                                                },
+                                                credentials: 'same-origin',
+                                                body: JSON.stringify({ subscription_id: result.subscription_id })
+                                            });
+                                            const confirmData = await confirmResponse.json();
+                                            if (confirmData.success) {
+                                                window.location.href = confirmData.redirect_url || '/owner/settings';
+                                            }
+                                        }, 1000);
+                                        return result.subscription_id;
+                                    }
+
+                                    if (result.subscription_id) {
+                                        return result.subscription_id;
+                                    }
+                                    throw new Error(result.error || 'Failed to create subscription');
+                                } catch (error) {
+                                    console.error('PayPal error:', error);
+                                    throw error;
+                                }
+                            },
+                            onApprove: async function(data, actions) {
+                                try {
+                                    const response = await fetch('/owner/paypal/confirm-subscription/' + paymentConfig.planId, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        credentials: 'same-origin',
+                                        body: JSON.stringify({ subscription_id: data.subscriptionID })
+                                    });
+
+                                    if (!response.ok) {
+                                        throw new Error('Failed to confirm subscription');
+                                    }
+
+                                    const result = await response.json();
+                                    if (result.success) {
+                                        window.location.href = result.redirect_url || '/owner/settings';
+                                    } else {
+                                        showError(result.error || 'Subscription confirmation failed');
+                                    }
+                                } catch (error) {
+                                    console.error('PayPal confirmation error:', error);
+                                    showError(error.message || 'Failed to confirm subscription');
+                                }
+                            },
+                            onError: function(err) {
+                                showError(err.message || 'PayPal error occurred');
+                            }
+                        }).render('#paypal-button-container');
+                    } catch (error) {
+                        console.error('PayPal button initialization error:', error);
+                    }
+                };
+                document.head.appendChild(script);
+            } catch (error) {
+                console.error('PayPal initialization error:', error);
+            }
+        }
+
+        // Select payment method
+        function selectPaymentMethod(gateway, element) {
+            currentGateway = gateway;
+
+            // Update tabs
+            document.querySelectorAll('.payment-tab').forEach(tab => tab.classList.remove('active'));
+            element.classList.add('active');
+
+            // Show corresponding form
+            document.querySelectorAll('.payment-form-section').forEach(section => section.classList.remove('active'));
+            const formSection = document.getElementById(gateway + '-form');
+            if (formSection) formSection.classList.add('active');
+        }
+
+        // Show error
+        function showError(message) {
+            const errorDiv = document.getElementById('card-errors');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+            } else {
+                alert(message);
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                if (paymentConfig.gateways && paymentConfig.gateways.stripe) {
+                    initStripe();
+                }
+                if (paymentConfig.gateways && paymentConfig.gateways.paypal) {
+                    initPayPal();
+                }
+            } catch (error) {
+                console.error('Payment initialization error:', error);
+            }
+        });
     </script>
 </body>
 </html>
-

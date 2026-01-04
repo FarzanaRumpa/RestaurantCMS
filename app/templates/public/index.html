@@ -407,6 +407,40 @@
             letter-spacing: 1px;
         }
 
+        .pricing-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-pink));
+            color: #fff;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .trial-badge {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .trial-badge i {
+            font-size: 13px;
+        }
+
         .pricing-card h4 {
             font-size: 1.5rem;
             font-weight: 700;
@@ -706,6 +740,12 @@
                 <span class="section-badge"><i class="bi bi-tag"></i> Pricing</span>
                 <h2>Simple, Transparent Pricing</h2>
                 <p>Choose the perfect plan for your restaurant. Start free, upgrade anytime.</p>
+                <div id="pricing-location" style="margin-top: 12px; display: none;">
+                    <span style="background: rgba(99, 102, 241, 0.2); padding: 6px 16px; border-radius: 20px; font-size: 13px; color: #a5b4fc;">
+                        <i class="bi bi-geo-alt me-1"></i>
+                        <span id="pricing-country">Pricing for your region</span>
+                    </span>
+                </div>
             </div>
             <div class="row g-4 justify-content-center" id="pricing-container">
                 <!-- Pricing plans will be loaded dynamically -->
@@ -903,30 +943,81 @@
                     document.getElementById('features-container').innerHTML = featuresHTML;
                 }
 
-                // Load pricing plans
-                const pricingRes = await fetch('/api/public/pricing-plans');
+                // Load pricing plans with country detection
+                let userCountry = 'US'; // Default
+                let detectedTier = 'tier1';
+
+                try {
+                    // First try server-side detection
+                    const geoRes = await fetch('/api/public/detect-country');
+                    const geoData = await geoRes.json();
+
+                    if (geoData.success && geoData.data) {
+                        // Check if it's a real detection (not localhost fallback)
+                        if (geoData.data.is_detected || geoData.data.is_manual) {
+                            userCountry = geoData.data.country_code;
+                            detectedTier = geoData.data.tier;
+                            console.log('Server detected country:', userCountry, 'Tier:', detectedTier);
+                        } else {
+                            // Server returned default (localhost), try external API
+                            try {
+                                const extGeoRes = await fetch('https://ipapi.co/json/', { timeout: 3000 });
+                                const extGeoData = await extGeoRes.json();
+                                if (extGeoData.country_code) {
+                                    userCountry = extGeoData.country_code;
+                                    console.log('External API detected country:', userCountry);
+                                }
+                            } catch (extErr) {
+                                console.log('External geo detection failed, using default');
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log('Country detection failed, using default:', e);
+                }
+
+                const pricingRes = await fetch(`/api/public/pricing-plans?country=${userCountry}`);
                 const pricingData = await pricingRes.json();
 
                 if (pricingData.success && pricingData.data.length > 0) {
+                    // Show detected pricing region
+                    const pricingLocation = document.getElementById('pricing-location');
+                    const pricingCountry = document.getElementById('pricing-country');
+                    if (pricingLocation && pricingCountry && pricingData.country && pricingData.country !== 'US') {
+                        const tierNames = { 'tier1': 'Premium', 'tier2': 'Standard', 'tier3': 'Economy', 'tier4': 'Budget' };
+                        const tierName = tierNames[pricingData.tier] || 'Regional';
+                        pricingCountry.textContent = `${tierName} pricing for ${pricingData.country}`;
+                        pricingLocation.style.display = 'inline-block';
+                    }
+
                     const pricingHTML = pricingData.data.map((plan, index) => {
                         const features = Array.isArray(plan.features) ? plan.features :
                                         (typeof plan.features === 'string' ? JSON.parse(plan.features) : []);
                         const featuresHTML = features.map(f => `<li><i class="bi bi-check-circle-fill"></i> ${f}</li>`).join('');
                         const isFeatured = plan.is_highlighted;
+                        const hasTrial = plan.trial_enabled && plan.trial_days > 0;
+                        const isFree = parseFloat(plan.price) === 0;
+                        const trialBadge = (hasTrial && !isFree) ? `<div class="trial-badge"><i class="bi bi-gift"></i> ${plan.trial_days}-day free trial</div>` : '';
+                        const ctaText = isFree ? 'Get Started Free' : (hasTrial ? `Start ${plan.trial_days}-Day Free Trial` : (plan.cta_text || 'Get Started'));
+                        const ctaLink = plan.cta_link || '/owner/login?signup=1';
 
                         return `
                             <div class="col-lg-4" data-aos="fade-up" data-aos-delay="${index * 100}">
                                 <div class="glass-card pricing-card ${isFeatured ? 'featured' : ''}">
                                     ${isFeatured ? '<div class="pricing-badge">MOST POPULAR</div>' : ''}
+                                    ${trialBadge}
                                     <h4>${plan.name}</h4>
                                     <p style="color: rgba(255,255,255,0.6);">${plan.description || ''}</p>
-                                    <div class="price">$${plan.price} <span>/${plan.price_period || 'month'}</span></div>
+                                    <div class="price">
+                                        ${isFree ? '<span style="font-size: 2.5rem;">FREE</span>' : '$' + plan.price + ' <span>/' + (plan.price_period || 'month') + '</span>'}
+                                    </div>
                                     <ul class="pricing-features">
                                         ${featuresHTML}
                                     </ul>
-                                    <a href="${plan.cta_link || '/owner/login'}" class="btn btn-pricing ${isFeatured ? 'btn-pricing-primary' : 'btn-pricing-outline'}">
-                                        ${plan.cta_text || 'Get Started'}
+                                    <a href="${ctaLink}" class="btn btn-pricing ${isFeatured ? 'btn-pricing-primary' : 'btn-pricing-outline'}">
+                                        ${ctaText}
                                     </a>
+                                    ${(hasTrial && !isFree) ? '<div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 12px; text-align: center;">Billed after ' + plan.trial_days + '-day trial · Cancel anytime</div>' : ''}
                                 </div>
                             </div>
                         `;

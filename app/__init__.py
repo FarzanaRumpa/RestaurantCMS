@@ -40,6 +40,7 @@ def create_app(config_class=Config):
     from app.routes.public_content_api import public_content_api  # Public website content API
     from app.routes.website_content_api import website_content_api  # Admin content management API
     from app.routes.public_admin import public_admin_bp  # Public admin routes
+    from app.routes.subscription import subscription_bp  # Subscription management routes
 
     csrf.exempt(auth_bp)
     csrf.exempt(restaurants_bp)
@@ -49,11 +50,13 @@ def create_app(config_class=Config):
     csrf.exempt(registration_bp)
     csrf.exempt(public_content_api)
     csrf.exempt(owner_bp)  # Exempt owner API routes for kitchen/customer screen
+    csrf.exempt(subscription_bp)  # Exempt subscription API routes
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/rock')
     app.register_blueprint(public_admin_bp, url_prefix='/rock/public')  # Public admin routes
     app.register_blueprint(owner_bp, url_prefix='')
+    app.register_blueprint(subscription_bp, url_prefix='/owner')  # Subscription routes
     app.register_blueprint(restaurants_bp, url_prefix='/api/restaurants')
     app.register_blueprint(menu_bp, url_prefix='/api/menu')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
@@ -110,6 +113,27 @@ def create_app(config_class=Config):
                 context['has_permission'] = lambda p, perms=user_permissions: p in perms
 
         return context
+
+    # Custom Jinja filters
+    @app.template_filter('from_json')
+    def from_json_filter(value):
+        """Parse JSON string to Python object"""
+        import json
+        if not value:
+            return {}
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    # Add datetime to template context
+    @app.context_processor
+    def inject_datetime():
+        from datetime import datetime, timedelta
+        return {
+            'today': datetime.utcnow(),
+            'timedelta': timedelta
+        }
 
     return app
 

@@ -377,8 +377,13 @@
                         <h2 class="mb-0 fw-bold" style="color: #667eea; font-size: 2.5rem;">${{ plan.price }}</h2>
                         <span class="ms-2 text-muted fw-medium">/{{ plan.price_period }}</span>
                     </div>
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="badge bg-primary px-3 py-2 me-2" style="border-radius: 8px; font-size: 0.7rem;">BASE PRICE</span>
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                        <span class="badge bg-primary px-3 py-2" style="border-radius: 8px; font-size: 0.7rem;">BASE PRICE</span>
+                        {% if plan.trial_enabled and plan.trial_days > 0 %}
+                        <span class="badge px-3 py-2" style="background: linear-gradient(135deg, #22c55e, #10b981); color: white; border-radius: 8px; font-size: 0.7rem;">
+                            <i class="bi bi-gift me-1"></i>{{ plan.trial_days }}-DAY TRIAL
+                        </span>
+                        {% endif %}
                         <small class="text-muted">Tier 1 Countries</small>
                     </div>
 
@@ -534,6 +539,12 @@
                             data-badge-text="{{ plan.badge_text or '' }}"
                             data-cta-text="{{ plan.cta_text }}"
                             data-cta-link="{{ plan.cta_link }}"
+                            data-trial-enabled="{{ plan.trial_enabled }}"
+                            data-trial-days="{{ plan.trial_days or 0 }}"
+                            data-grace-period-days="{{ plan.grace_period_days or 3 }}"
+                            data-max-retry-attempts="{{ plan.max_retry_attempts or 3 }}"
+                            data-retry-interval-hours="{{ plan.retry_interval_hours or 24 }}"
+                            data-cancellation-behavior="{{ plan.cancellation_behavior or 'end_of_period' }}"
                             data-max-tables="{{ plan.max_tables or '' }}"
                             data-max-categories="{{ plan.max_categories or '' }}"
                             data-max-restaurants="{{ plan.max_restaurants or '' }}"
@@ -612,6 +623,7 @@
                     <ul class="nav nav-tabs mb-3" role="tablist">
                         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#createBasic">Basic Info</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createPricing">Pricing</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createTrial"><i class="bi bi-clock-history me-1"></i>Trial & Billing</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createLimits">Limits</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createFeaturesTab">Features</a></li>
                     </ul>
@@ -712,6 +724,66 @@
                                         <span class="input-group-text">$</span>
                                         <input type="number" step="0.01" class="form-control" id="createPriceTier4" name="price_tier4">
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trial & Billing Tab -->
+                        <div class="tab-pane fade" id="createTrial">
+                            <div class="alert alert-info mb-4">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <strong>Free Trial:</strong> Enable to allow users to try the plan before being charged. Payment method is collected upfront but no charge occurs until trial ends.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="trial_enabled" value="1" id="createTrialEnabled" style="width: 50px; height: 25px;">
+                                        <label class="form-check-label fw-bold ms-2" for="createTrialEnabled" style="font-size: 1.1rem;">
+                                            <i class="bi bi-gift me-2 text-success"></i>Enable Free Trial
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createTrialDays">Trial Duration (Days) *</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="createTrialDays" name="trial_days" value="14" min="0" max="90">
+                                        <span class="input-group-text">days</span>
+                                    </div>
+                                    <small class="text-muted">Recommended: 7, 14, or 30 days</small>
+                                </div>
+                                <div class="col-12"><hr></div>
+                                <div class="col-12">
+                                    <h6 class="fw-bold mb-3"><i class="bi bi-credit-card me-2 text-primary"></i>Payment Retry Settings</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createGracePeriod">Grace Period (Days)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="createGracePeriod" name="grace_period_days" value="3" min="0" max="30">
+                                        <span class="input-group-text">days</span>
+                                    </div>
+                                    <small class="text-muted">Days before account suspension after failed payment</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createMaxRetries">Max Retry Attempts</label>
+                                    <input type="number" class="form-control" id="createMaxRetries" name="max_retry_attempts" value="3" min="1" max="10">
+                                    <small class="text-muted">Number of payment retry attempts</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="createRetryInterval">Retry Interval (Hours)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="createRetryInterval" name="retry_interval_hours" value="24" min="1" max="168">
+                                        <span class="input-group-text">hrs</span>
+                                    </div>
+                                    <small class="text-muted">Hours between retry attempts</small>
+                                </div>
+                                <div class="col-12"><hr></div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="createCancellationBehavior">Cancellation Behavior</label>
+                                    <select class="form-select" id="createCancellationBehavior" name="cancellation_behavior">
+                                        <option value="end_of_period">End of Billing Period (Recommended)</option>
+                                        <option value="immediate">Immediate</option>
+                                    </select>
+                                    <small class="text-muted">When user cancels, access ends immediately or at period end</small>
                                 </div>
                             </div>
                         </div>
@@ -897,6 +969,7 @@
                     <ul class="nav nav-tabs mb-3" role="tablist">
                         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#editBasic">Basic Info</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editPricing">Pricing</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editTrial"><i class="bi bi-clock-history me-1"></i>Trial & Billing</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editLimits">Limits</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editFeaturesTab">Features</a></li>
                     </ul>
@@ -997,6 +1070,66 @@
                                         <span class="input-group-text">$</span>
                                         <input type="number" step="0.01" class="form-control" name="price_tier4" id="editPriceTier4">
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trial & Billing Tab -->
+                        <div class="tab-pane fade" id="editTrial">
+                            <div class="alert alert-info mb-4">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <strong>Free Trial:</strong> Enable to allow users to try the plan before being charged. Payment method is collected upfront but no charge occurs until trial ends.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="trial_enabled" value="1" id="editTrialEnabled" style="width: 50px; height: 25px;">
+                                        <label class="form-check-label fw-bold ms-2" for="editTrialEnabled" style="font-size: 1.1rem;">
+                                            <i class="bi bi-gift me-2 text-success"></i>Enable Free Trial
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editTrialDays">Trial Duration (Days) *</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="editTrialDays" name="trial_days" value="14" min="0" max="90">
+                                        <span class="input-group-text">days</span>
+                                    </div>
+                                    <small class="text-muted">Recommended: 7, 14, or 30 days</small>
+                                </div>
+                                <div class="col-12"><hr></div>
+                                <div class="col-12">
+                                    <h6 class="fw-bold mb-3"><i class="bi bi-credit-card me-2 text-primary"></i>Payment Retry Settings</h6>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editGracePeriod">Grace Period (Days)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="editGracePeriod" name="grace_period_days" value="3" min="0" max="30">
+                                        <span class="input-group-text">days</span>
+                                    </div>
+                                    <small class="text-muted">Days before account suspension after failed payment</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editMaxRetries">Max Retry Attempts</label>
+                                    <input type="number" class="form-control" id="editMaxRetries" name="max_retry_attempts" value="3" min="1" max="10">
+                                    <small class="text-muted">Number of payment retry attempts</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="editRetryInterval">Retry Interval (Hours)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="editRetryInterval" name="retry_interval_hours" value="24" min="1" max="168">
+                                        <span class="input-group-text">hrs</span>
+                                    </div>
+                                    <small class="text-muted">Hours between retry attempts</small>
+                                </div>
+                                <div class="col-12"><hr></div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="editCancellationBehavior">Cancellation Behavior</label>
+                                    <select class="form-select" id="editCancellationBehavior" name="cancellation_behavior">
+                                        <option value="end_of_period">End of Billing Period (Recommended)</option>
+                                        <option value="immediate">Immediate</option>
+                                    </select>
+                                    <small class="text-muted">When user cancels, access ends immediately or at period end</small>
                                 </div>
                             </div>
                         </div>
@@ -1169,6 +1302,43 @@
 </div>
 
 <script>
+// Handle price change to disable/enable trial for free plans
+function updateTrialAvailability(priceInput, trialCheckbox, trialTabSelector) {
+    const isFree = parseFloat(priceInput.value) === 0 || priceInput.value === '';
+    const trialTab = document.querySelector(trialTabSelector);
+
+    if (isFree) {
+        trialCheckbox.checked = false;
+        trialCheckbox.disabled = true;
+        if (trialTab) {
+            trialTab.innerHTML = '<i class="bi bi-gift me-1"></i>Trial <span class="badge bg-secondary ms-1">N/A for free</span>';
+        }
+    } else {
+        trialCheckbox.disabled = false;
+        if (trialTab) {
+            trialTab.innerHTML = '<i class="bi bi-gift me-1"></i>Trial & Billing';
+        }
+    }
+}
+
+// Create modal price change handler
+document.getElementById('createPrice').addEventListener('input', function() {
+    updateTrialAvailability(
+        this,
+        document.getElementById('createTrialEnabled'),
+        '[data-bs-target="#createTrial"]'
+    );
+});
+
+// Edit modal price change handler
+document.getElementById('editPrice').addEventListener('input', function() {
+    updateTrialAvailability(
+        this,
+        document.getElementById('editTrialEnabled'),
+        '[data-bs-target="#editTrial"]'
+    );
+});
+
 // Handle features textarea for create
 document.getElementById('createFeaturesText').addEventListener('input', function() {
     const lines = this.value.split('\n').filter(l => l.trim());
@@ -1228,6 +1398,30 @@ document.querySelectorAll('.edit-btn').forEach(btn => {
         document.getElementById('editMaxItems').value = this.dataset.maxItems || '';
         document.getElementById('editMaxOrders').value = this.dataset.maxOrders || '';
         document.getElementById('editMaxStaff').value = this.dataset.maxStaff || '';
+
+        // Trial Configuration
+        const isFreeEdit = parseFloat(this.dataset.price) === 0;
+        const editTrialEnabled = document.getElementById('editTrialEnabled');
+        const editTrialTab = document.querySelector('[data-bs-target="#editTrial"]');
+
+        if (isFreeEdit) {
+            editTrialEnabled.checked = false;
+            editTrialEnabled.disabled = true;
+            if (editTrialTab) {
+                editTrialTab.innerHTML = '<i class="bi bi-gift me-1"></i>Trial <span class="badge bg-secondary ms-1">N/A</span>';
+            }
+        } else {
+            editTrialEnabled.disabled = false;
+            editTrialEnabled.checked = this.dataset.trialEnabled === 'True';
+            if (editTrialTab) {
+                editTrialTab.innerHTML = '<i class="bi bi-gift me-1"></i>Trial & Billing';
+            }
+        }
+        document.getElementById('editTrialDays').value = this.dataset.trialDays || '0';
+        document.getElementById('editGracePeriod').value = this.dataset.gracePeriodDays || '3';
+        document.getElementById('editMaxRetries').value = this.dataset.maxRetryAttempts || '3';
+        document.getElementById('editRetryInterval').value = this.dataset.retryIntervalHours || '24';
+        document.getElementById('editCancellationBehavior').value = this.dataset.cancellationBehavior || 'end_of_period';
 
         // Feature toggles
         document.getElementById('e_kitchen').checked = this.dataset.hasKitchenDisplay === 'True';

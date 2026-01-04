@@ -13,6 +13,9 @@ def apply_for_registration():
     """
     Submit a new restaurant registration application
 
+    MODERATION DISABLED: Registrations are auto-approved instantly.
+    The moderation system architecture remains intact for future use.
+
     Required fields:
     - applicant_name: str
     - applicant_email: str
@@ -35,10 +38,11 @@ def apply_for_registration():
 
     # Validate pricing plan if provided
     pricing_plan_id = data.get('pricing_plan_id')
+    pricing_plan = None
     if pricing_plan_id:
         from app.models.website_content_models import PricingPlan
-        plan = PricingPlan.query.get(pricing_plan_id)
-        if not plan or not plan.is_active:
+        pricing_plan = PricingPlan.query.get(pricing_plan_id)
+        if not pricing_plan or not pricing_plan.is_active:
             return error_response('Invalid or inactive pricing plan selected', 400)
 
     # Check if email already has a pending request
@@ -59,6 +63,13 @@ def apply_for_registration():
     if approved:
         return error_response('A restaurant with this email has already been approved', 400)
 
+    # Check if user already exists
+    from app.models import User, Restaurant
+    existing_user = User.query.filter_by(email=data['applicant_email']).first()
+    if existing_user:
+        return error_response('An account with this email already exists', 400)
+
+    # Create registration request (for audit trail)
     reg_request = RegistrationRequest(
         applicant_name=data['applicant_name'],
         applicant_email=data['applicant_email'],
@@ -68,7 +79,7 @@ def apply_for_registration():
         restaurant_address=data.get('restaurant_address'),
         restaurant_phone=data.get('restaurant_phone'),
         restaurant_type=data.get('restaurant_type'),
-        status='pending',
+        status='pending',  # Will be set based on moderation setting
         priority='normal'
     )
 
@@ -79,14 +90,105 @@ def apply_for_registration():
             reg_request.notes += f", Country: {data.get('country_code')}"
 
     db.session.add(reg_request)
+    db.session.flush()  # Get the ID
+
+    # Check if moderation is enabled
+    from app.models import SystemSettings
+    moderation_enabled = SystemSettings.is_moderation_enabled()
+
+    # Automatically create user and restaurant account
+    from datetime import datetime, timedelta
+    import secrets
+    import string
+
+    # Generate username from email
+    username = data['applicant_email'].split('@')[0]
+    base_username = username
+    counter = 1
+    while User.query.filter_by(username=username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    # Generate temporary password
+    temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+
+    # Create user
+    new_user = User(
+        username=username,
+        email=data['applicant_email'],
+        role='restaurant_owner',
+        is_active=True
+    )
+    new_user.set_password(temp_password)
+    db.session.add(new_user)
+    db.session.flush()
+
+    # Determine registration status based on moderation setting
+    if moderation_enabled:
+        registration_status = 'pending_review'
+        reg_request_status = 'pending'
+        status_message = 'Your account has been created and is pending review. You can access limited features until approved.'
+    else:
+        registration_status = 'approved'
+        reg_request_status = 'approved'
+        status_message = 'Your account has been created successfully! Please login with your credentials.'
+
+    # Create restaurant
+    new_restaurant = Restaurant(
+        name=data['restaurant_name'],
+        description=data.get('restaurant_description'),
+        address=data.get('restaurant_address'),
+        phone=data.get('restaurant_phone'),
+        email=data['applicant_email'],
+        owner_id=new_user.id,
+        is_active=True,
+        country_code=data.get('country_code', 'US'),
+        pricing_plan_id=pricing_plan_id if pricing_plan else None,
+        registration_status=registration_status,
+        registration_request_id=reg_request.id
+    )
+
+    # Set trial period if plan selected
+    if pricing_plan:
+        new_restaurant.is_trial = True
+        new_restaurant.trial_ends_at = datetime.utcnow() + timedelta(days=14)
+        new_restaurant.subscription_start_date = datetime.utcnow()
+
+    db.session.add(new_restaurant)
+    db.session.flush()
+
+    # Update registration request
+    reg_request.status = reg_request_status
+    reg_request.reviewed_at = datetime.utcnow() if not moderation_enabled else None
+    reg_request.approved_user_id = new_user.id
+    reg_request.approved_restaurant_id = new_restaurant.id
+    reg_request.admin_notes = 'Auto-approved (moderation disabled)' if not moderation_enabled else 'Pending moderation review'
+
+    # Create moderation log for audit trail
+    from app.models import ModerationLog
+    log = ModerationLog(
+        registration_id=reg_request.id,
+        admin_id=None,  # System
+        action='approved' if not moderation_enabled else 'created',
+        old_status='new',
+        new_status=reg_request_status,
+        notes='Auto-approved by system' if not moderation_enabled else 'Account created, pending moderation'
+    )
+    db.session.add(log)
+
     db.session.commit()
 
     return json_response({
         'request_id': reg_request.request_id,
-        'status': reg_request.status,
+        'status': reg_request_status,
+        'registration_status': registration_status,
+        'moderation_enabled': moderation_enabled,
+        'username': username,
+        'temp_password': temp_password,
+        'restaurant_id': new_restaurant.id,
         'pricing_plan_id': pricing_plan_id,
-        'message': 'Your registration request has been submitted successfully. You will be notified once it has been reviewed.'
-    }, 'Registration submitted', 201)
+        'message': status_message
+    }, 'Registration successful', 201)
 
 
 @registration_bp.route('/status/<request_id>', methods=['GET'])

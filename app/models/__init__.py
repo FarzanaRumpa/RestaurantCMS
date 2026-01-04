@@ -93,6 +93,12 @@ class Restaurant(db.Model):
     is_trial = db.Column(db.Boolean, default=False)
     trial_ends_at = db.Column(db.DateTime)
 
+    # Registration/Moderation Status
+    # approved, pending_review, rejected
+    registration_status = db.Column(db.String(20), default='approved')
+    rejection_reason = db.Column(db.Text)  # Reason if rejected
+    registration_request_id = db.Column(db.Integer, db.ForeignKey('registration_requests.id'))
+
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -277,6 +283,21 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # POS-specific fields
+    order_source = db.Column(db.String(20), default='qr')  # 'qr', 'pos', 'online'
+    order_type = db.Column(db.String(20), default='dine_in')  # 'dine_in', 'takeaway', 'delivery'
+    payment_status = db.Column(db.String(20), default='unpaid')  # 'unpaid', 'partial', 'paid'
+    payment_method = db.Column(db.String(20))  # 'cash', 'card', 'split', 'online'
+    cash_received = db.Column(db.Float, default=0.0)
+    change_given = db.Column(db.Float, default=0.0)
+    customer_name = db.Column(db.String(100))
+    customer_phone = db.Column(db.String(20))
+    is_held = db.Column(db.Boolean, default=False)  # For held orders in POS
+    discount_amount = db.Column(db.Float, default=0.0)
+    discount_type = db.Column(db.String(20))  # 'percentage', 'fixed'
+    tax_amount = db.Column(db.Float, default=0.0)
+    subtotal = db.Column(db.Float, default=0.0)
+
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
 
     def generate_order_number(self):
@@ -304,7 +325,21 @@ class Order(db.Model):
             'notes': self.notes,
             'items': [item.to_dict() for item in self.items],
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'updated_at': self.updated_at.isoformat(),
+            # POS fields
+            'order_source': self.order_source,
+            'order_type': self.order_type,
+            'payment_status': self.payment_status,
+            'payment_method': self.payment_method,
+            'cash_received': self.cash_received,
+            'change_given': self.change_given,
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'is_held': self.is_held,
+            'discount_amount': self.discount_amount,
+            'discount_type': self.discount_type,
+            'tax_amount': self.tax_amount,
+            'subtotal': self.subtotal
         }
 
 
@@ -481,13 +516,49 @@ class QRTemplateSettings(db.Model):
         return settings
 
 
+class SystemSettings(db.Model):
+    """Global system settings managed by admin"""
+    __tablename__ = 'system_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Registration Moderation
+    moderation_enabled = db.Column(db.Boolean, default=False)  # If True, new registrations need approval
+    auto_approve_free_plans = db.Column(db.Boolean, default=True)  # Auto-approve free plan signups
+
+    # Other system settings can be added here
+    maintenance_mode = db.Column(db.Boolean, default=False)
+    allow_new_registrations = db.Column(db.Boolean, default=True)
+
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create default settings"""
+        settings = cls.query.first()
+        if not settings:
+            settings = cls()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
+    @classmethod
+    def is_moderation_enabled(cls):
+        """Check if moderation is enabled"""
+        settings = cls.get_settings()
+        return settings.moderation_enabled
+
+
 # Import public models
 from app.models.public_models import PublicView, PublicFeedback, PublicMenuClick, PublicSearchLog
 
 # Import website content models
 from app.models.website_content_models import (
     HeroSection, Feature, HowItWorksStep, PricingPlan,
-    Testimonial, FAQ, ContactInfo, FooterLink, FooterContent, SocialMediaLink
+    Testimonial, FAQ, ContactInfo, FooterLink, FooterContent, SocialMediaLink,
+    PaymentGateway, PaymentTransaction, Subscription, SubscriptionEvent,
+    ScheduledBillingJob, SubscriptionStatus
 )
 
 # Import contact form models

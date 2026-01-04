@@ -506,6 +506,21 @@
                 alert('Error generating PDF. Please try again.');
             }
         }
+
+        // Auto-print if requested via URL parameter
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('print') === '1') {
+                // Hide action buttons when auto-printing
+                const actionsBar = document.querySelector('.actions-bar');
+                if (actionsBar) actionsBar.style.display = 'none';
+
+                // Print after a brief delay to ensure page is rendered
+                setTimeout(() => {
+                    window.print();
+                }, 500);
+            }
+        })();
     </script>
 </body>
 </html>

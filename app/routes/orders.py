@@ -138,12 +138,14 @@ def create_order():
         order = Order(
             table_number=data['table_number'],
             notes=data.get('notes'),
-            restaurant_id=restaurant.id
+            restaurant_id=restaurant.id,
+            order_source='qr',  # Mark as QR order for analytics
+            order_type='dine_in'
         )
         db.session.add(order)
         db.session.flush()
 
-        order.order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{order.id}"
+        order.generate_order_number()  # Use the proper method to generate order number
 
         order_items_count = 0
         for item_data in data['items']:

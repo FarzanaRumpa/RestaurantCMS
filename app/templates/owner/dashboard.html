@@ -896,6 +896,17 @@
                     <i class="bi bi-grid-1x2-fill"></i>
                     Dashboard
                 </a>
+                {% if restaurant.has_feature('pos_integration') %}
+                <a href="{{ url_for('owner.pos_terminal', restaurant_id=restaurant.id) }}" class="nav-item">
+                    <i class="bi bi-calculator"></i>
+                    POS Terminal
+                </a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;">
+                    <i class="bi bi-lock-fill"></i>
+                    POS Terminal <span style="font-size: 10px; color: var(--accent-orange);">🔒</span>
+                </a>
+                {% endif %}
                 <a href="{{ url_for('owner.orders') }}" class="nav-item">
                     <i class="bi bi-receipt"></i>
                     Orders
@@ -993,6 +1004,102 @@
                 </div>
             </div>
         </header>
+
+        <!-- Subscription/Plan Status Banner -->
+        {% if subscription %}
+        <div style="background: {% if subscription.status == 'trialing' %}linear-gradient(135deg, #22c55e, #059669){% elif subscription.status == 'active' %}linear-gradient(135deg, #6366f1, #4f46e5){% elif subscription.status == 'payment_failed' or subscription.status == 'suspended' %}linear-gradient(135deg, #ef4444, #dc2626){% else %}linear-gradient(135deg, #6366f1, #4f46e5){% endif %}; border-radius: 16px; padding: 20px; margin-bottom: 24px; color: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <i class="bi bi-{% if subscription.status == 'trialing' %}gift{% elif subscription.status == 'active' %}check-circle-fill{% elif subscription.status == 'payment_failed' or subscription.status == 'suspended' %}exclamation-triangle-fill{% else %}info-circle{% endif %}" style="font-size: 24px;"></i>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">
+                            {% if subscription.status == 'trialing' %}
+                                🎉 Free Trial Active
+                            {% elif subscription.status == 'active' %}
+                                ✅ Subscription Active
+                            {% elif subscription.status == 'payment_failed' %}
+                                ⚠️ Payment Failed
+                            {% elif subscription.status == 'suspended' %}
+                                🚫 Account Suspended
+                            {% elif subscription.status == 'cancelled' %}
+                                ❌ Subscription Cancelled
+                            {% else %}
+                                ℹ️ {{ subscription.pricing_plan.name if subscription.pricing_plan else 'Current' }} Plan
+                            {% endif %}
+                        </h3>
+                    </div>
+                    <div style="font-size: 0.95rem; opacity: 0.95;">
+                        {% if subscription.status == 'trialing' and subscription.trial_end_date %}
+                            Your {{ subscription.pricing_plan.trial_days if subscription.pricing_plan else 14 }}-day free trial ends on <strong>{{ subscription.trial_end_date.strftime('%B %d, %Y') }}</strong>.
+                        {% elif subscription.status == 'active' and subscription.next_billing_date %}
+                            {{ subscription.pricing_plan.name if subscription.pricing_plan else 'Active' }} Plan • Next billing: <strong>{{ subscription.next_billing_date.strftime('%B %d, %Y') }}</strong>
+                        {% elif subscription.status == 'payment_failed' %}
+                            Payment failed. Please update your payment method to avoid service interruption.
+                        {% elif subscription.status == 'suspended' %}
+                            Your subscription has been suspended. Please update payment to restore access.
+                        {% elif subscription.status == 'cancelled' %}
+                            Subscription cancelled. {% if subscription.current_period_end %}Access until: {{ subscription.current_period_end.strftime('%B %d, %Y') }}{% endif %}
+                        {% else %}
+                            You have full access to all features.
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('subscription.subscription_status') }}" class="filter-btn active" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white; padding: 12px 24px; font-size: 0.95rem;">
+                        <i class="bi bi-gear"></i> Manage Subscription
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% elif restaurant.pricing_plan %}
+        <!-- Show current plan if no subscription record exists -->
+        <div style="background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 16px; padding: 20px; margin-bottom: 24px; color: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <i class="bi bi-box-seam" style="font-size: 24px;"></i>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">
+                            📦 {{ restaurant.pricing_plan.name }} Plan
+                        </h3>
+                    </div>
+                    <div style="font-size: 0.95rem; opacity: 0.95;">
+                        {% if restaurant.pricing_plan.trial_enabled and restaurant.pricing_plan.trial_days > 0 %}
+                            {{ restaurant.pricing_plan.trial_days }}-day trial available • ${{ restaurant.pricing_plan.price }}/{{ restaurant.pricing_plan.price_period }}
+                        {% else %}
+                            ${{ restaurant.pricing_plan.price }}/{{ restaurant.pricing_plan.price_period }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('owner.upgrade_plan') }}" class="filter-btn active" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white; padding: 12px 24px; font-size: 0.95rem;">
+                        <i class="bi bi-arrow-up-circle"></i> Upgrade Plan
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- No plan selected - show upgrade prompt -->
+        <div style="background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 16px; padding: 20px; margin-bottom: 24px; color: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 24px;"></i>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">
+                            ⚠️ No Plan Selected
+                        </h3>
+                    </div>
+                    <div style="font-size: 0.95rem; opacity: 0.95;">
+                        Choose a plan to unlock all features and get started with your restaurant.
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('owner.upgrade_plan') }}" class="filter-btn active" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white; padding: 12px 24px; font-size: 0.95rem;">
+                        <i class="bi bi-lightning-charge"></i> Choose a Plan
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Date Filter Section -->
         <div class="filter-section" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px;">

@@ -162,6 +162,11 @@
                 <div class="nav-section-title">Main</div>
                 {% if restaurant %}
                 <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
+                {% if restaurant.has_feature('pos_integration') %}
+                <a href="{{ url_for('owner.pos_terminal', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-calculator"></i>POS Terminal</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>POS Terminal 🔒</a>
+                {% endif %}
                 <a href="{{ url_for('owner.orders') }}" class="nav-item"><i class="bi bi-receipt"></i>Orders</a>
                 <a href="{{ url_for('owner.menu') }}" class="nav-item"><i class="bi bi-menu-button-wide"></i>Menu</a>
                 <a href="{{ url_for('owner.tables') }}" class="nav-item"><i class="bi bi-grid-3x3"></i>Tables & QR</a>
@@ -247,7 +252,6 @@
                         <img src="/static/uploads/logos/{{ restaurant.logo_path }}" alt="Restaurant Logo" id="logoPreview">
                         {% else %}
                         <i class="bi bi-image" id="logoIcon"></i>
-                        <img src="" alt="" id="logoPreview" style="display: none;">
                         {% endif %}
                     </div>
                     <div class="logo-actions">
@@ -294,7 +298,7 @@
                             <select name="category" class="form-control">
                                 <option value="">Select Category</option>
                                 {% for cat in categories %}
-                                <option value="{{ cat }}" {{ 'selected' if restaurant.category == cat else '' }}>{{ cat }}</option>
+                                <option value="{{ cat }}" {% if restaurant.category == cat %}selected{% endif %}>{{ cat }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -325,7 +329,7 @@
                             <select name="country" class="form-control" id="countrySelect" onchange="updateCountryCode(this)">
                                 <option value="">Select Country</option>
                                 {% for c in countries %}
-                                <option value="{{ c.name }}" data-code="{{ c.code }}" {{ 'selected' if restaurant.country == c.name or restaurant.country_code == c.code else '' }}>{{ c.name }}</option>
+                                <option value="{{ c.name }}" data-code="{{ c.code }}" {% if restaurant.country == c.name or restaurant.country_code == c.code %}selected{% endif %}>{{ c.name }}</option>
                                 {% endfor %}
                             </select>
                             <input type="hidden" name="country_code" id="countryCode" value="{{ restaurant.country_code or '' }}">
@@ -437,11 +441,22 @@
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const preview = document.getElementById('logoPreview');
+                    let preview = document.getElementById('logoPreview');
                     const icon = document.getElementById('logoIcon');
+                    const container = document.querySelector('.logo-preview');
+
+                    if (!preview) {
+                        // Create image element if it doesn't exist
+                        preview = document.createElement('img');
+                        preview.id = 'logoPreview';
+                        preview.alt = 'Restaurant Logo';
+                        container.appendChild(preview);
+                    }
+
                     preview.src = e.target.result;
                     preview.style.display = 'block';
                     if (icon) icon.style.display = 'none';
+
                     // Auto submit after preview
                     setTimeout(() => {
                         document.getElementById('logoForm').submit();

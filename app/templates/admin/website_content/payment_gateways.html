@@ -440,6 +440,46 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Wallet Support (Google Pay / Apple Pay) -->
+                        <div class="credential-group" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #0ea5e9;">
+                            <h6><i class="bi bi-wallet2"></i> Digital Wallet Support</h6>
+                            <p class="text-muted small mb-3">Enable Google Pay and Apple Pay through Stripe's Payment Request API</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3">
+                                        <label class="toggle-switch mb-0">
+                                            <input type="checkbox" name="supports_google_pay" value="1" {% if gateway.supports_google_pay %}checked{% endif %}>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <div>
+                                            <strong>Google Pay</strong>
+                                            <div class="text-muted small">Accept payments from Android devices</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3">
+                                        <label class="toggle-switch mb-0">
+                                            <input type="checkbox" name="supports_apple_pay" value="1" {% if gateway.supports_apple_pay %}checked{% endif %}>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <div>
+                                            <strong>Apple Pay</strong>
+                                            <div class="text-muted small">Accept payments from iOS devices</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Google Pay Merchant ID (Optional)</label>
+                                    <input type="text" class="form-control" name="google_pay_merchant_id" value="{{ gateway.google_pay_merchant_id or '' }}" placeholder="merchant_...">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Apple Pay Merchant ID (Optional)</label>
+                                    <input type="text" class="form-control" name="apple_pay_merchant_id" value="{{ gateway.apple_pay_merchant_id or '' }}" placeholder="merchant.com.example">
+                                </div>
+                            </div>
+                        </div>
                         {% endif %}
 
                         <div class="credential-group">

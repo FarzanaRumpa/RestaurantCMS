@@ -231,6 +231,11 @@
                 <div class="nav-section-title">Main</div>
                 {% if restaurant %}
                 <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
+                {% if restaurant.has_feature('pos_integration') %}
+                <a href="{{ url_for('owner.pos_terminal', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-calculator"></i>POS Terminal</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>POS Terminal 🔒</a>
+                {% endif %}
                 <a href="{{ url_for('owner.orders') }}" class="nav-item"><i class="bi bi-receipt"></i>Orders</a>
                 <a href="{{ url_for('owner.menu') }}" class="nav-item"><i class="bi bi-menu-button-wide"></i>Menu</a>
                 <a href="{{ url_for('owner.tables') }}" class="nav-item"><i class="bi bi-grid-3x3"></i>Tables & QR</a>
@@ -306,7 +311,38 @@
             </div>
         </header>
 
-        {% if current_plan %}
+        <!-- Subscription Status Banner -->
+        {% if subscription %}
+        <div style="background: {% if subscription.status == 'trialing' %}linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(5, 150, 105, 0.15)){% elif subscription.status == 'active' %}linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15)){% else %}var(--bg-card){% endif %}; border: 1px solid {% if subscription.status == 'trialing' %}rgba(34, 197, 94, 0.4){% elif subscription.status == 'active' %}rgba(99, 102, 241, 0.4){% else %}var(--border){% endif %}; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <div style="width: 56px; height: 56px; background: {% if subscription.status == 'trialing' %}linear-gradient(135deg, #22c55e, #059669){% else %}linear-gradient(135deg, var(--accent-primary), var(--accent-purple)){% endif %}; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-{% if subscription.status == 'trialing' %}gift{% else %}award-fill{% endif %}" style="font-size: 28px; color: white;"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">
+                        {% if subscription.status == 'trialing' %}
+                            🎉 Free Trial: {{ subscription.pricing_plan.name }} Plan
+                        {% elif subscription.status == 'active' %}
+                            ✅ Active: {{ subscription.pricing_plan.name }} Plan
+                        {% elif subscription.status == 'cancelled' %}
+                            ❌ Cancelled: {{ subscription.pricing_plan.name }} Plan
+                        {% else %}
+                            {{ subscription.pricing_plan.name }} Plan
+                        {% endif %}
+                    </h3>
+                    <p style="font-size: 14px; color: var(--text-secondary);">
+                        {% if subscription.status == 'trialing' and subscription.trial_end_date %}
+                            Trial ends {{ subscription.trial_end_date.strftime('%B %d, %Y') }} • Then ${{ subscription.billing_amount }}/{{ subscription.billing_interval }}
+                        {% elif subscription.status == 'active' and subscription.next_billing_date %}
+                            ${{ subscription.billing_amount }}/{{ subscription.billing_interval }} • Renews {{ subscription.next_billing_date.strftime('%B %d, %Y') }}
+                        {% elif subscription.status == 'cancelled' and subscription.current_period_end %}
+                            Access until {{ subscription.current_period_end.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% elif current_plan %}
         <div class="current-plan-banner">
             <div class="current-plan-icon">
                 <i class="bi bi-award-fill"></i>
@@ -341,18 +377,42 @@
         <div class="plans-grid">
             {% for plan in plans %}
             {% set plan_price = plan.get_price_for_country(user_country) %}
-            <div class="plan-card {% if current_plan and plan.id == current_plan.id %}current{% endif %}">
-                {% if current_plan and plan.id == current_plan.id %}
-                <span class="plan-badge current">Current Plan</span>
-                {% elif current_plan and plan_price > current_plan.get_price_for_country(user_country) %}
-                <span class="plan-badge recommended">Recommended</span>
-                {% elif current_plan and plan_price < current_plan.get_price_for_country(user_country) %}
+            {% set has_trial = plan.trial_enabled and plan.trial_days > 0 and plan_price > 0 %}
+            {# Use subscription as single source of truth, fallback to restaurant.pricing_plan only if no subscription #}
+            {% set active_plan_id = subscription.pricing_plan_id if subscription else (current_plan.id if current_plan else None) %}
+            {% set is_current_plan = active_plan_id and plan.id == active_plan_id %}
+            {% set already_used_trial = subscription and subscription.trial_start_date %}
+            {% set is_in_trial = subscription and subscription.status == 'trialing' and is_current_plan %}
+            {% set current_price = current_plan.get_price_for_country(user_country) if current_plan else 0 %}
+            <div class="plan-card {% if is_current_plan %}current{% endif %}">
+                {% if is_current_plan %}
+                <span class="plan-badge current">{% if is_in_trial %}In Trial{% else %}Current Plan{% endif %}</span>
+                {% elif plan.is_highlighted and not is_current_plan %}
+                <span class="plan-badge recommended">Most Popular</span>
+                {% elif active_plan_id and plan_price > 0 %}
+                    {% if plan_price > current_price %}
+                <span class="plan-badge upgrade" style="background: var(--accent-green);">Upgrade</span>
+                    {% elif plan_price < current_price %}
                 <span class="plan-badge downgrade">Downgrade</span>
+                    {% endif %}
                 {% endif %}
 
                 <div class="plan-header">
                     <div class="plan-name">{{ plan.name }}</div>
+                    {% if plan_price == 0 %}
+                    <div class="plan-price" style="color: var(--accent-green);">FREE</div>
+                    {% else %}
                     <div class="plan-price">${{ "%.2f"|format(plan_price) }}<span>/{{ plan.price_period }}</span></div>
+                    {% endif %}
+                    {% if has_trial and not already_used_trial %}
+                    <div style="display: inline-block; background: linear-gradient(135deg, #22c55e, #059669); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 12px;">
+                        <i class="bi bi-gift" style="margin-right: 6px;"></i>{{ plan.trial_days }}-Day Free Trial
+                    </div>
+                    {% elif has_trial and already_used_trial %}
+                    <div style="display: inline-block; background: var(--text-muted); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 12px;">
+                        <i class="bi bi-info-circle" style="margin-right: 6px;"></i>Trial Already Used
+                    </div>
+                    {% endif %}
                     {% if plan.description %}
                     <div class="plan-description">{{ plan.description }}</div>
                     {% endif %}
@@ -405,19 +465,36 @@
                 </div>
 
                 <div class="plan-action">
-                    {% if current_plan and plan.id == current_plan.id %}
+                    {% if is_current_plan %}
                     <button class="btn btn-current" disabled>
                         <i class="bi bi-check-circle-fill"></i>
-                        Current Plan
+                        {% if is_in_trial %}In Trial{% else %}Current Plan{% endif %}
                     </button>
-                    {% elif current_plan and plan.price > current_plan.price %}
+                    {% elif plan_price == 0 %}
+                    <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST">
+                        <button type="submit" class="btn btn-upgrade" style="background: linear-gradient(135deg, #22c55e, #059669);">
+                            <i class="bi bi-check-circle-fill"></i>
+                            Get Started Free
+                        </button>
+                    </form>
+                    {% elif has_trial and not already_used_trial %}
+                    <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST">
+                        <button type="submit" class="btn btn-upgrade" style="background: linear-gradient(135deg, #22c55e, #059669);">
+                            <i class="bi bi-gift"></i>
+                            Start {{ plan.trial_days }}-Day Free Trial
+                        </button>
+                    </form>
+                    <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px;">
+                        Then ${{ "%.2f"|format(plan_price) }}/{{ plan.price_period }} · Cancel anytime
+                    </div>
+                    {% elif active_plan_id and plan_price > current_price %}
                     <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST">
                         <button type="submit" class="btn btn-upgrade">
                             <i class="bi bi-arrow-up-circle-fill"></i>
-                            Upgrade to {{ plan.name }}
+                            {% if already_used_trial %}Upgrade to{% else %}Upgrade to{% endif %} {{ plan.name }}
                         </button>
                     </form>
-                    {% elif current_plan and plan.price < current_plan.price %}
+                    {% elif active_plan_id and plan_price < current_price %}
                     <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to downgrade? You may lose access to some features.');">
                         <button type="submit" class="btn btn-downgrade">
                             <i class="bi bi-arrow-down-circle"></i>
@@ -428,7 +505,7 @@
                     <form action="{{ url_for('owner.change_plan', plan_id=plan.id) }}" method="POST">
                         <button type="submit" class="btn btn-upgrade">
                             <i class="bi bi-arrow-up-circle-fill"></i>
-                            Select {{ plan.name }}
+                            {% if already_used_trial %}Subscribe to{% else %}Select{% endif %} {{ plan.name }}
                         </button>
                     </form>
                     {% endif %}

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscribe to {{ plan.name }} Plan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --border: #1f1f2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8b8b9e;
+            --text-muted: #5a5a6e;
+            --accent-primary: #6366f1;
+            --accent-primary-glow: rgba(99, 102, 241, 0.2);
+            --accent-green: #22c55e;
+            --accent-green-bg: rgba(34, 197, 94, 0.1);
+            --accent-blue: #3b82f6;
+            --accent-orange: #f97316;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .checkout-container {
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            background: var(--bg-card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+                padding: 24px;
+            }
+        }
+
+        .checkout-header {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+
+        .checkout-header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .checkout-header p { color: var(--text-secondary); }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .back-link:hover { color: var(--text-primary); }
+
+        /* Order Summary */
+        .order-summary {
+            background: var(--bg-card-hover);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .order-summary h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .plan-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid var(--accent-primary);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .plan-name {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .plan-price {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent-primary);
+        }
+
+        .plan-price span {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .trial-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .plan-features {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            padding: 6px 0;
+        }
+
+        .feature-item i.bi-check-circle-fill { color: var(--accent-green); }
+
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-top: 1px solid var(--border);
+            margin-top: 16px;
+        }
+
+        .order-total .label {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .order-total .amount {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .order-total .amount.free {
+            color: var(--accent-green);
+        }
+
+        .billing-note {
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .billing-note strong {
+            color: var(--text-primary);
+        }
+
+        /* Payment Section */
+        .payment-section h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .gateway-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .gateway-option {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: var(--bg-card-hover);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .gateway-option:hover { border-color: var(--accent-primary); }
+        .gateway-option.selected {
+            border-color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .gateway-option input { display: none; }
+
+        .gateway-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .gateway-icon.stripe { background: linear-gradient(135deg, #635bff, #8b5cf6); }
+        .gateway-icon.paypal { background: linear-gradient(135deg, #003087, #009cde); }
+
+        .gateway-info h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .gateway-info p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Card Form */
+        .card-form {
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .card-form.active { display: block; }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .form-input::placeholder { color: var(--text-muted); }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Consent */
+        .consent-section {
+            margin-bottom: 24px;
+        }
+
+        .consent-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .consent-checkbox input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent-primary);
+            margin-top: 2px;
+        }
+
+        .consent-checkbox label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .consent-checkbox label a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .submit-btn:hover {
+            background: #5558e3;
+            transform: translateY(-1px);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .submit-btn .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .submit-btn.loading .spinner { display: block; }
+        .submit-btn.loading .btn-text { display: none; }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .secure-note {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .secure-note i { color: var(--accent-green); }
+
+        /* Error Message */
+        .error-message {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.active { display: block; }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('owner.upgrade_plan') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to Plans
+    </a>
+
+    <div class="checkout-container">
+        <div class="checkout-header">
+            <h1>{% if has_trial %}Start Your Free Trial{% else %}Subscribe to {{ plan.name }}{% endif %}</h1>
+            <p>{% if has_trial %}{{ trial_days }}-day free trial, then ${{ "%.2f"|format(plan_price) }}/{{ plan.price_period }}{% else %}Get started with the {{ plan.name }} plan{% endif %}</p>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="order-summary">
+            <h3>Order Summary</h3>
+
+            <div class="plan-card">
+                <div class="plan-name">{{ plan.name }} Plan</div>
+                <div class="plan-price">
+                    ${{ "%.2f"|format(plan_price) }}
+                    <span>/ {{ plan.price_period }}</span>
+                </div>
+                {% if has_trial %}
+                    <div class="trial-badge">
+                        <i class="bi bi-gift-fill"></i>
+                        {{ trial_days }}-Day Free Trial
+                    </div>
+                {% endif %}
+
+                <div class="plan-features">
+                    {% set features = plan.features|from_json if plan.features else [] %}
+                    {% for feature in features[:5] %}
+                        <div class="feature-item">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>{{ feature }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="order-total">
+                <span class="label">Due Today</span>
+                <span class="amount {% if has_trial %}free{% endif %}">
+                    {% if has_trial %}$0.00{% else %}${{ "%.2f"|format(plan_price) }}{% endif %}
+                </span>
+            </div>
+
+            {% if has_trial %}
+                <div class="billing-note">
+                    <strong>How it works:</strong> Your {{ trial_days }}-day free trial starts today.
+                    You won't be charged until <strong>{{ (today + timedelta(days=trial_days)).strftime('%B %d, %Y') }}</strong>.
+                    Cancel anytime before then to avoid charges.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Payment Section -->
+        <div class="payment-section">
+            <h3>Payment Method</h3>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            {% if plan_price > 0 %}
+                <div class="gateway-options">
+                    {% for gateway in gateways %}
+                        <label class="gateway-option" data-gateway="{{ gateway.name }}">
+                            <input type="radio" name="payment_gateway" value="{{ gateway.name }}" {% if loop.first %}checked{% endif %}>
+                            <div class="gateway-icon {{ gateway.name }}">
+                                <i class="bi bi-{% if gateway.name == 'stripe' %}credit-card{% else %}paypal{% endif %}"></i>
+                            </div>
+                            <div class="gateway-info">
+                                <h4>{{ gateway.display_name }}</h4>
+                                <p>{{ gateway.description or 'Secure payment' }}</p>
+                            </div>
+                        </label>
+                    {% else %}
+                        <label class="gateway-option selected" data-gateway="sandbox">
+                            <input type="radio" name="payment_gateway" value="sandbox" checked>
+                            <div class="gateway-icon stripe">
+                                <i class="bi bi-credit-card"></i>
+                            </div>
+                            <div class="gateway-info">
+                                <h4>Credit/Debit Card</h4>
+                                <p>Secure card payment (Sandbox Mode)</p>
+                            </div>
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <!-- Card Form (Sandbox simulation) -->
+                <div class="card-form active" id="cardForm">
+                    <div class="form-group">
+                        <label class="form-label">Card Number</label>
+                        <input type="text" class="form-input" id="cardNumber" placeholder="4242 4242 4242 4242" maxlength="19">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Expiry Date</label>
+                            <input type="text" class="form-input" id="cardExpiry" placeholder="MM/YY" maxlength="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CVC</label>
+                            <input type="text" class="form-input" id="cardCvc" placeholder="123" maxlength="4">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Name on Card</label>
+                        <input type="text" class="form-input" id="cardName" placeholder="John Doe">
+                    </div>
+                </div>
+            {% else %}
+                <div class="billing-note" style="background: var(--accent-green-bg); color: var(--accent-green);">
+                    <i class="bi bi-check-circle-fill"></i>
+                    This is a free plan! No payment method required.
+                </div>
+            {% endif %}
+
+            <!-- Consent -->
+            <div class="consent-section">
+                <div class="consent-checkbox">
+                    <input type="checkbox" id="consentCheckbox">
+                    <label for="consentCheckbox">
+                        I agree to the <a href="/terms" target="_blank">Terms of Service</a> and
+                        <a href="/privacy" target="_blank">Privacy Policy</a>.
+                        {% if has_trial %}
+                            I understand that after my {{ trial_days }}-day free trial, I will be automatically charged
+                            ${{ "%.2f"|format(plan_price) }}/{{ plan.price_period }} unless I cancel.
+                        {% endif %}
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <button class="submit-btn" id="submitBtn" disabled>
+                <span class="spinner"></span>
+                <span class="btn-text">
+                    {% if has_trial %}
+                        <i class="bi bi-rocket-takeoff"></i>
+                        Start Free Trial
+                    {% elif plan_price > 0 %}
+                        <i class="bi bi-lock-fill"></i>
+                        Subscribe Now - ${{ "%.2f"|format(plan_price) }}
+                    {% else %}
+                        <i class="bi bi-check-circle"></i>
+                        Activate Free Plan
+                    {% endif %}
+                </span>
+            </button>
+
+            <div class="secure-note">
+                <i class="bi bi-shield-check"></i>
+                Secured by 256-bit SSL encryption
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const planPrice = {{ plan_price }};
+        const hasTrial = {{ 'true' if has_trial else 'false' }};
+        const planId = {{ plan.id }};
+
+        // Gateway selection
+        document.querySelectorAll('.gateway-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.gateway-option').forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+                this.querySelector('input').checked = true;
+            });
+        });
+
+        // Card number formatting
+        document.getElementById('cardNumber')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
+            let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formatted;
+        });
+
+        // Expiry formatting
+        document.getElementById('cardExpiry')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2);
+            }
+            e.target.value = value;
+        });
+
+        // Consent checkbox
+        document.getElementById('consentCheckbox').addEventListener('change', function() {
+            document.getElementById('submitBtn').disabled = !this.checked;
+        });
+
+        // Form submission
+        document.getElementById('submitBtn').addEventListener('click', async function() {
+            const btn = this;
+            const errorEl = document.getElementById('errorMessage');
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+            errorEl.classList.remove('active');
+
+            try {
+                // Gather form data
+                const data = {
+                    consent_accepted: document.getElementById('consentCheckbox').checked
+                };
+
+                if (planPrice > 0) {
+                    const cardNumber = document.getElementById('cardNumber')?.value.replace(/\s/g, '') || '';
+                    const cardExpiry = document.getElementById('cardExpiry')?.value || '';
+                    const selectedGateway = document.querySelector('input[name="payment_gateway"]:checked')?.value || 'sandbox';
+
+                    // Validate card (basic)
+                    if (cardNumber.length < 13) {
+                        throw new Error('Please enter a valid card number');
+                    }
+
+                    // In production, this would be replaced with actual gateway tokenization
+                    // For sandbox, we simulate a token
+                    data.payment_method_token = 'tok_sandbox_' + Date.now();
+                    data.payment_gateway = selectedGateway;
+                    data.card_last4 = cardNumber.slice(-4);
+                    data.card_brand = getCardBrand(cardNumber);
+                    data.card_expiry = cardExpiry;
+                }
+
+                const response = await fetch(`/owner/subscribe/${planId}/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Success - redirect
+                    alert(result.message);
+                    window.location.href = result.redirect_url || '/owner/subscription';
+                } else {
+                    throw new Error(result.error || 'Subscription failed');
+                }
+
+            } catch (error) {
+                errorEl.textContent = error.message;
+                errorEl.classList.add('active');
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+
+        function getCardBrand(number) {
+            if (/^4/.test(number)) return 'visa';
+            if (/^5[1-5]/.test(number)) return 'mastercard';
+            if (/^3[47]/.test(number)) return 'amex';
+            if (/^6(?:011|5)/.test(number)) return 'discover';
+            return 'card';
+        }
+    </script>
+</body>
+</html>
+

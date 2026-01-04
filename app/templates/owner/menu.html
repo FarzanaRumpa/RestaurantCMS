@@ -219,6 +219,11 @@
             <div class="nav-section">
                 <div class="nav-section-title">Main</div>
                 <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
+                {% if restaurant.has_feature('pos_integration') %}
+                <a href="{{ url_for('owner.pos_terminal', restaurant_id=restaurant.id) }}" class="nav-item"><i class="bi bi-calculator"></i>POS Terminal</a>
+                {% else %}
+                <a href="{{ url_for('owner.upgrade_plan') }}" class="nav-item" style="opacity: 0.5;"><i class="bi bi-lock-fill"></i>POS Terminal 🔒</a>
+                {% endif %}
                 <a href="{{ url_for('owner.orders') }}" class="nav-item"><i class="bi bi-receipt"></i>Orders</a>
                 <a href="{{ url_for('owner.menu') }}" class="nav-item active"><i class="bi bi-menu-button-wide"></i>Menu</a>
                 <a href="{{ url_for('owner.tables') }}" class="nav-item"><i class="bi bi-grid-3x3"></i>Tables & QR</a>

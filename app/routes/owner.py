@@ -5,7 +5,7 @@ URL Pattern: /<restaurant_id>/* for each restaurant
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g, jsonify, current_app
 from functools import wraps
 from app import db
-from app.models import User, Restaurant, Order, Category, Table, MenuItem
+from app.models import User, Restaurant, Order, OrderItem, Category, Table, MenuItem
 from app.services.qr_service import generate_restaurant_qr_code
 from datetime import datetime, timedelta
 
@@ -141,6 +141,23 @@ def owner_required(f):
             return redirect(url_for('owner.login'))
         g.owner = user
 
+        # Check if restaurant has been rejected (unless admin is accessing)
+        if user.restaurant and not is_admin_access:
+            registration_status = getattr(user.restaurant, 'registration_status', 'approved')
+
+            # If rejected, only allow access to the rejected page
+            if registration_status == 'rejected':
+                # Allow access to rejection page and logout
+                allowed_endpoints = ['owner.rejected', 'owner.logout', 'owner.profile']
+                if request.endpoint not in allowed_endpoints:
+                    return redirect(url_for('owner.rejected'))
+
+            # If pending review, show pending message but allow limited access
+            elif registration_status == 'pending_review':
+                allowed_endpoints = ['owner.pending_review', 'owner.logout', 'owner.profile', 'owner.dashboard']
+                if request.endpoint not in allowed_endpoints:
+                    flash('Your account is pending review. Some features are limited until approved.', 'warning')
+
         # Verify restaurant ID if provided in URL
         restaurant_id = kwargs.get('restaurant_id')
         if restaurant_id and user.restaurant:
@@ -208,6 +225,43 @@ def logout():
     return redirect(url_for('owner.login'))
 
 
+@owner_bp.route('/rejected')
+@owner_required
+def rejected():
+    """Page shown when registration has been rejected"""
+    user = get_current_owner()
+    if not user or not user.restaurant:
+        return redirect(url_for('owner.login'))
+
+    # If not rejected, redirect to dashboard
+    if getattr(user.restaurant, 'registration_status', 'approved') != 'rejected':
+        return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
+
+    return render_template('owner/rejected.html',
+        user=user,
+        restaurant=user.restaurant,
+        rejection_reason=getattr(user.restaurant, 'rejection_reason', None)
+    )
+
+
+@owner_bp.route('/pending-review')
+@owner_required
+def pending_review():
+    """Page shown when registration is pending review"""
+    user = get_current_owner()
+    if not user or not user.restaurant:
+        return redirect(url_for('owner.login'))
+
+    # If not pending, redirect to dashboard
+    if getattr(user.restaurant, 'registration_status', 'approved') != 'pending_review':
+        return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
+
+    return render_template('owner/pending_review.html',
+        user=user,
+        restaurant=user.restaurant
+    )
+
+
 @owner_bp.route('/owner/signup', methods=['POST'])
 def signup():
     """Restaurant owner signup with package selection"""
@@ -224,21 +278,30 @@ def signup():
         # Validation
         if not all([username, email, password, restaurant_name, owner_name, pricing_plan_id]):
             flash('Please fill in all required fields and select a pricing plan', 'error')
-            return redirect(url_for('owner.login'))
+            return redirect(url_for('owner.login') + '?signup=1')
 
         if len(password) < 6:
             flash('Password must be at least 6 characters long', 'error')
-            return redirect(url_for('owner.login'))
+            return redirect(url_for('owner.login') + '?signup=1')
 
         # Check if username exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists. Please choose another one.', 'error')
-            return redirect(url_for('owner.login'))
+            return redirect(url_for('owner.login') + '?signup=1')
 
         # Check if email exists
         if User.query.filter_by(email=email).first():
             flash('Email already registered. Please use another email.', 'error')
-            return redirect(url_for('owner.login'))
+            return redirect(url_for('owner.login') + '?signup=1')
+
+        # Get the selected pricing plan
+        from app.models.website_content_models import PricingPlan, Subscription
+        from datetime import datetime, timedelta
+
+        selected_plan = PricingPlan.query.get(int(pricing_plan_id))
+        if not selected_plan or not selected_plan.is_active:
+            flash('Invalid pricing plan selected.', 'error')
+            return redirect(url_for('owner.login') + '?signup=1')
 
         # Create new user
         new_user = User(
@@ -252,14 +315,65 @@ def signup():
         db.session.add(new_user)
         db.session.flush()  # To get the user ID
 
-        # Create restaurant
+        # Create restaurant with pricing plan
         new_restaurant = Restaurant(
             name=restaurant_name,
             phone=phone,
             owner_id=new_user.id,
+            pricing_plan_id=selected_plan.id,
             is_active=True
         )
         db.session.add(new_restaurant)
+        db.session.flush()  # To get the restaurant ID
+
+        # Create subscription
+        now = datetime.utcnow()
+        is_free_plan = float(selected_plan.price) == 0
+        has_trial = selected_plan.trial_enabled and selected_plan.trial_days > 0 and not is_free_plan
+
+        if has_trial:
+            # Create trial subscription
+            trial_end = now + timedelta(days=selected_plan.trial_days)
+            new_subscription = Subscription(
+                restaurant_id=new_restaurant.id,
+                pricing_plan_id=selected_plan.id,
+                status='trialing',
+                trial_start_date=now,
+                trial_end_date=trial_end,
+                current_period_start=now,
+                current_period_end=trial_end,
+                next_billing_date=trial_end,
+                billing_amount=float(selected_plan.price),
+                billing_interval=selected_plan.price_period or 'month',
+                billing_currency=selected_plan.currency or 'USD',
+                consent_timestamp=now,
+                consent_ip_address=request.remote_addr or '127.0.0.1',
+                terms_version='1.0',
+                consent_method='signup_trial'
+            )
+            success_message = f'🎉 Welcome, {owner_name}! Your {selected_plan.trial_days}-day free trial of {selected_plan.name} has started.'
+        else:
+            # Create active subscription (for free plans or paid without trial)
+            new_subscription = Subscription(
+                restaurant_id=new_restaurant.id,
+                pricing_plan_id=selected_plan.id,
+                status='active',
+                current_period_start=now,
+                current_period_end=now + timedelta(days=36500 if is_free_plan else 30),  # 100 years for free, 30 days for paid
+                billing_amount=float(selected_plan.price),
+                billing_interval=selected_plan.price_period or 'month',
+                billing_currency=selected_plan.currency or 'USD',
+                consent_timestamp=now,
+                consent_ip_address=request.remote_addr or '127.0.0.1',
+                terms_version='1.0',
+                consent_method='signup'
+            )
+            if is_free_plan:
+                success_message = f'Welcome, {owner_name}! Your account has been created with the {selected_plan.name} plan.'
+            else:
+                success_message = f'Welcome, {owner_name}! Your {selected_plan.name} subscription is now active.'
+
+        db.session.add(new_subscription)
         db.session.commit()
 
         # Auto-login the user
@@ -267,13 +381,10 @@ def signup():
         session['owner_logged_in'] = True
         session['owner_user_id'] = new_user.id
 
-        flash(f'Welcome to RestaurantPro, {owner_name}! Your account has been created successfully.', 'success')
+        flash(success_message, 'success')
 
         # Redirect to restaurant dashboard
-        if new_restaurant:
-            return redirect(url_for('owner.dashboard', restaurant_id=new_restaurant.id))
-        else:
-            return redirect(url_for('owner.no_restaurant'))
+        return redirect(url_for('owner.dashboard', restaurant_id=new_restaurant.id))
 
     except Exception as e:
         db.session.rollback()
@@ -404,9 +515,19 @@ def dashboard(restaurant_id):
     # Get recent orders (last 10)
     recent_orders = Order.query.filter_by(restaurant_id=restaurant.id).order_by(Order.created_at.desc()).limit(10).all()
 
+    # Get subscription status
+    from app.models.website_content_models import Subscription
+    subscription = Subscription.query.filter_by(restaurant_id=restaurant.id).first()
+
+    # Sync restaurant.pricing_plan_id with subscription (subscription is source of truth)
+    if subscription and subscription.pricing_plan_id != restaurant.pricing_plan_id:
+        restaurant.pricing_plan_id = subscription.pricing_plan_id
+        db.session.commit()
+
     return render_template('owner/dashboard.html',
         user=user,
         restaurant=restaurant,
+        subscription=subscription,
         # Filter info
         filter_type=filter_type,
         start_date=start_date.strftime('%Y-%m-%d'),
@@ -1116,9 +1237,14 @@ def settings():
         flash('Settings saved successfully!', 'success')
         return redirect(url_for('owner.settings'))
 
+    # Get subscription info
+    from app.models.website_content_models import Subscription
+    subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
     return render_template('owner/settings.html',
         user=user,
-        restaurant=user.restaurant
+        restaurant=user.restaurant,
+        subscription=subscription
     )
 
 
@@ -1135,12 +1261,21 @@ def upgrade_plan():
         return redirect(url_for('owner.dashboard', restaurant_id=1))
     
     # Get all active pricing plans
-    from app.models.website_content_models import PricingPlan
+    from app.models.website_content_models import PricingPlan, Subscription
     from app.services.geo_service import get_country_info
 
     plans = PricingPlan.query.filter_by(is_active=True).order_by(PricingPlan.price).all()
+
+    # Get current subscription
+    subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
+    # Sync restaurant.pricing_plan_id with subscription (subscription is source of truth)
+    if subscription and subscription.pricing_plan_id != user.restaurant.pricing_plan_id:
+        user.restaurant.pricing_plan_id = subscription.pricing_plan_id
+        db.session.commit()
+
     current_plan = user.restaurant.pricing_plan
-    
+
     # Determine user's country: prefer restaurant's country_code, then IP detection
     if user.restaurant.country_code:
         user_country = user.restaurant.country_code
@@ -1172,6 +1307,7 @@ def upgrade_plan():
         restaurant=user.restaurant,
         plans=plans,
         current_plan=current_plan,
+        subscription=subscription,
         country_info=country_info,
         user_country=user_country,
         current_tier=tier
@@ -1188,22 +1324,63 @@ def change_plan(plan_id):
         flash('No restaurant found', 'error')
         return redirect(url_for('owner.dashboard', restaurant_id=1))
     
-    from app.models.website_content_models import PricingPlan
+    from app.models.website_content_models import PricingPlan, Subscription
+    from datetime import datetime, timedelta
+
     new_plan = PricingPlan.query.get_or_404(plan_id)
     current_plan = user.restaurant.pricing_plan
     
-    # If plan has a price > 0, redirect to checkout
+    # Get existing subscription
+    existing_subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
+    # Check if already on this plan
+    if existing_subscription and existing_subscription.pricing_plan_id == new_plan.id:
+        flash('You are already on this plan.', 'info')
+        return redirect(url_for('owner.upgrade_plan'))
+
+    # Check if user already used a trial (any trial, not just for this plan)
+    already_used_trial = existing_subscription and existing_subscription.trial_start_date is not None
+
+    # Determine if this plan has an available trial
+    plan_has_trial = new_plan.trial_enabled and new_plan.trial_days > 0 and float(new_plan.price) > 0
+    can_use_trial = plan_has_trial and not already_used_trial
+
+    # For ANY paid plan (with or without trial), redirect to checkout to capture payment method
+    # This ensures we can bill automatically after trial or for recurring payments
     if float(new_plan.price) > 0:
+        # Store trial eligibility in session for checkout page to display
+        from flask import session
+        session['trial_eligible'] = can_use_trial
+        session['trial_days'] = new_plan.trial_days if can_use_trial else 0
         return redirect(url_for('owner.checkout', plan_id=plan_id))
 
     # Free plan - process immediately
+    now = datetime.utcnow()
+
+    if existing_subscription:
+        existing_subscription.pricing_plan_id = new_plan.id
+        existing_subscription.status = 'active'
+        existing_subscription.current_period_start = now
+        existing_subscription.current_period_end = now + timedelta(days=36500)  # ~100 years for free plan
+        existing_subscription.billing_amount = 0
+    else:
+        new_subscription = Subscription(
+            restaurant_id=user.restaurant.id,
+            pricing_plan_id=new_plan.id,
+            status='active',
+            current_period_start=now,
+            current_period_end=now + timedelta(days=36500),
+            billing_amount=0,
+            billing_interval='month',
+            billing_currency='USD',
+            consent_timestamp=now,
+            consent_ip_address=request.remote_addr or '127.0.0.1',
+            terms_version='1.0',
+            consent_method='free_plan'
+        )
+        db.session.add(new_subscription)
+
     user.restaurant.pricing_plan_id = new_plan.id
-    
-    from datetime import datetime, timedelta
-    user.restaurant.subscription_start_date = datetime.utcnow()
-    user.restaurant.subscription_end_date = datetime.utcnow() + timedelta(days=30 if new_plan.price_period == 'monthly' else 365)
-    user.restaurant.is_trial = False
-    
     db.session.commit()
     
     if current_plan:
@@ -1239,8 +1416,9 @@ def checkout(plan_id):
     user_country = user.restaurant.country if hasattr(user.restaurant, 'country') and user.restaurant.country else country_info['country_code']
     plan_price = plan.get_price_for_country(user_country)
 
-    # Get active payment gateways
+    # Get active payment gateways with public info
     gateways = PaymentGateway.query.filter_by(is_active=True).order_by(PaymentGateway.display_order).all()
+    gateways_public = [g.to_public_dict() for g in gateways]
 
     return render_template('owner/checkout.html',
                          user=user,
@@ -1249,7 +1427,358 @@ def checkout(plan_id):
                          plan_price=plan_price,
                          country_info=country_info,
                          user_country=user_country,
-                         gateways=gateways)
+                         gateways=gateways_public)
+
+
+# ============= STRIPE PAYMENT ENDPOINTS =============
+
+@owner_bp.route('/create-setup-intent/<int:plan_id>', methods=['POST'])
+@owner_required
+def create_setup_intent(plan_id):
+    """Create Stripe SetupIntent for trial subscriptions (no immediate charge)"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'error': 'No restaurant found'}), 400
+
+    from app.services.payment_service import payment_service
+    from app.models.website_content_models import PricingPlan
+
+    plan = PricingPlan.query.get_or_404(plan_id)
+
+    result = payment_service.stripe_create_setup_intent(
+        customer_email=user.email,
+        customer_name=user.restaurant.name,
+        metadata={
+            'restaurant_id': str(user.restaurant.id),
+            'plan_id': str(plan.id),
+            'plan_name': plan.name
+        }
+    )
+
+    if result.success:
+        return jsonify({
+            'client_secret': result.payment_method_id,
+            'customer_id': result.customer_id
+        })
+    else:
+        return jsonify({'error': result.error}), 400
+
+
+@owner_bp.route('/create-payment-intent/<int:plan_id>', methods=['POST'])
+@owner_required
+def create_payment_intent(plan_id):
+    """Create Stripe PaymentIntent for immediate payment"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'error': 'No restaurant found'}), 400
+
+    from app.services.payment_service import payment_service
+    from app.models.website_content_models import PricingPlan
+    from app.services.geo_service import get_country_info
+
+    plan = PricingPlan.query.get_or_404(plan_id)
+    country_info = get_country_info()
+    user_country = user.restaurant.country_code if hasattr(user.restaurant, 'country_code') and user.restaurant.country_code else country_info['country_code']
+    plan_price = plan.get_price_for_country(user_country)
+
+    result = payment_service.create_payment_intent(
+        gateway_name='stripe',
+        amount=plan_price,
+        currency=plan.currency or 'usd',
+        customer_email=user.email,
+        metadata={
+            'restaurant_id': str(user.restaurant.id),
+            'plan_id': str(plan.id),
+            'plan_name': plan.name
+        }
+    )
+
+    if result.success:
+        return jsonify({
+            'client_secret': result.raw_response.get('client_secret'),
+            'payment_intent_id': result.raw_response.get('payment_intent_id')
+        })
+    else:
+        return jsonify({'error': result.error}), 400
+
+
+@owner_bp.route('/confirm-payment/<int:plan_id>', methods=['POST'])
+@owner_required
+def confirm_payment(plan_id):
+    """Confirm payment and create subscription"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'error': 'No restaurant found'}), 400
+
+    from app.models.website_content_models import PricingPlan, Subscription
+    from app.services.geo_service import get_country_info
+    from datetime import datetime, timedelta
+
+    data = request.get_json() or {}
+    gateway = data.get('gateway', 'stripe')
+    payment_method_id = data.get('payment_method_id')
+
+    plan = PricingPlan.query.get_or_404(plan_id)
+    country_info = get_country_info()
+    user_country = user.restaurant.country_code if hasattr(user.restaurant, 'country_code') and user.restaurant.country_code else country_info['country_code']
+    plan_price = plan.get_price_for_country(user_country)
+
+    now = datetime.utcnow()
+    has_trial = plan.trial_enabled and plan.trial_days > 0
+
+    # Get or create subscription
+    subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
+    if has_trial:
+        trial_end = now + timedelta(days=plan.trial_days)
+
+        if subscription:
+            subscription.pricing_plan_id = plan.id
+            subscription.status = 'trialing'
+            subscription.trial_start_date = now
+            subscription.trial_end_date = trial_end
+            subscription.current_period_start = now
+            subscription.current_period_end = trial_end
+            subscription.next_billing_date = trial_end
+            subscription.billing_amount = float(plan_price)
+            subscription.payment_gateway = gateway
+            subscription.payment_method_id = payment_method_id
+        else:
+            subscription = Subscription(
+                restaurant_id=user.restaurant.id,
+                pricing_plan_id=plan.id,
+                status='trialing',
+                trial_start_date=now,
+                trial_end_date=trial_end,
+                current_period_start=now,
+                current_period_end=trial_end,
+                next_billing_date=trial_end,
+                billing_amount=float(plan_price),
+                billing_interval=plan.price_period or 'month',
+                billing_currency=plan.currency or 'USD',
+                payment_gateway=gateway,
+                payment_method_id=payment_method_id,
+                consent_timestamp=now,
+                consent_ip_address=request.remote_addr,
+                terms_version='1.0',
+                consent_method='checkout'
+            )
+            db.session.add(subscription)
+    else:
+        period_end = now + timedelta(days=30 if plan.price_period == 'month' else 365)
+
+        if subscription:
+            subscription.pricing_plan_id = plan.id
+            subscription.status = 'active'
+            subscription.current_period_start = now
+            subscription.current_period_end = period_end
+            subscription.next_billing_date = period_end
+            subscription.billing_amount = float(plan_price)
+            subscription.payment_gateway = gateway
+            subscription.payment_method_id = payment_method_id
+        else:
+            subscription = Subscription(
+                restaurant_id=user.restaurant.id,
+                pricing_plan_id=plan.id,
+                status='active',
+                current_period_start=now,
+                current_period_end=period_end,
+                next_billing_date=period_end,
+                billing_amount=float(plan_price),
+                billing_interval=plan.price_period or 'month',
+                billing_currency=plan.currency or 'USD',
+                payment_gateway=gateway,
+                payment_method_id=payment_method_id,
+                consent_timestamp=now,
+                consent_ip_address=request.remote_addr,
+                terms_version='1.0',
+                consent_method='checkout'
+            )
+            db.session.add(subscription)
+
+    user.restaurant.pricing_plan_id = plan.id
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'redirect_url': url_for('owner.settings'),
+        'message': f'Successfully subscribed to {plan.name}!'
+    })
+
+
+# ============= PAYPAL PAYMENT ENDPOINTS =============
+
+@owner_bp.route('/paypal/create-subscription/<int:plan_id>', methods=['POST'])
+@owner_required
+def paypal_create_subscription(plan_id):
+    """Create PayPal subscription"""
+    try:
+        user = get_current_owner()
+
+        if not user.restaurant:
+            return jsonify({'error': 'No restaurant found'}), 400
+
+        from app.services.payment_service import payment_service
+        from app.models.website_content_models import PricingPlan, PaymentGateway
+        from app.services.geo_service import get_country_info
+        import uuid
+
+        plan = PricingPlan.query.get_or_404(plan_id)
+        country_info = get_country_info()
+        user_country = user.restaurant.country_code if hasattr(user.restaurant, 'country_code') and user.restaurant.country_code else country_info['country_code']
+        plan_price = plan.get_price_for_country(user_country)
+
+        # Check if PayPal is configured
+        paypal_gateway = PaymentGateway.query.filter_by(name='paypal', is_active=True).first()
+
+        # Demo mode - simulate subscription creation when PayPal not configured
+        if not paypal_gateway:
+            print("DEBUG: No PayPal gateway found")
+            return jsonify({
+                'subscription_id': f'DEMO-SUB-{uuid.uuid4().hex[:12].upper()}',
+                'approval_url': '#',
+                'demo_mode': True,
+                'message': 'Demo mode: PayPal gateway not found. Please initialize payment gateways in admin panel.'
+            })
+
+        credentials = paypal_gateway.get_active_credentials()
+        if not credentials or not credentials.get('client_id'):
+            print("DEBUG: PayPal credentials not configured")
+            return jsonify({
+                'subscription_id': f'DEMO-SUB-{uuid.uuid4().hex[:12].upper()}',
+                'approval_url': '#',
+                'demo_mode': True,
+                'message': 'Demo mode: PayPal credentials not configured. Please configure PayPal in admin panel.'
+            })
+
+        # Create billing plan
+        plan_result = payment_service.paypal_create_subscription_plan(
+            name=plan.name,
+            amount=plan_price,
+            interval='MONTH' if plan.price_period == 'month' else 'YEAR',
+            trial_days=plan.trial_days if plan.trial_enabled else 0
+        )
+
+        if not plan_result.success:
+            print(f"DEBUG: PayPal plan creation failed: {plan_result.error}")
+            return jsonify({'error': plan_result.error}), 400
+
+    except Exception as e:
+        print(f"DEBUG: Exception in paypal_create_subscription: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'subscription_id': f'DEMO-SUB-{uuid.uuid4().hex[:12].upper()}',
+            'approval_url': '#',
+            'demo_mode': True,
+            'message': f'Demo mode: Error occurred - {str(e)}'
+        })
+
+    # Create subscription
+    return_url = url_for('owner.paypal_confirm_subscription', plan_id=plan_id, _external=True)
+    cancel_url = url_for('owner.checkout', plan_id=plan_id, _external=True)
+
+    sub_result = payment_service.paypal_create_subscription(
+        plan_id=plan_result.subscription_id,
+        return_url=return_url,
+        cancel_url=cancel_url
+    )
+
+    if sub_result.success:
+        return jsonify({
+            'subscription_id': sub_result.subscription_id,
+            'approval_url': sub_result.raw_response.get('approval_url')
+        })
+    else:
+        return jsonify({'error': sub_result.error}), 400
+
+
+@owner_bp.route('/paypal/confirm-subscription/<int:plan_id>', methods=['POST'])
+@owner_required
+def paypal_confirm_subscription(plan_id):
+    """Confirm PayPal subscription after user approval"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'error': 'No restaurant found'}), 400
+
+    from app.models.website_content_models import PricingPlan, Subscription, PaymentGateway
+    from app.services.geo_service import get_country_info
+    from datetime import datetime, timedelta
+
+    data = request.get_json() or {}
+    paypal_subscription_id = data.get('subscription_id')
+
+    if not paypal_subscription_id:
+        return jsonify({'error': 'Missing subscription ID'}), 400
+
+    plan = PricingPlan.query.get_or_404(plan_id)
+    country_info = get_country_info()
+    user_country = user.restaurant.country_code if hasattr(user.restaurant, 'country_code') and user.restaurant.country_code else country_info['country_code']
+    plan_price = plan.get_price_for_country(user_country)
+
+    now = datetime.utcnow()
+    has_trial = plan.trial_enabled and plan.trial_days > 0
+
+    # Check if this is demo mode (subscription ID starts with DEMO-)
+    is_demo = paypal_subscription_id.startswith('DEMO-')
+
+    # Get or create subscription
+    subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
+    if has_trial:
+        trial_end = now + timedelta(days=plan.trial_days)
+        status = 'trialing'
+        period_end = trial_end
+    else:
+        status = 'active'
+        period_end = now + timedelta(days=30 if plan.price_period == 'month' else 365)
+
+    if subscription:
+        subscription.pricing_plan_id = plan.id
+        subscription.status = status
+        if has_trial:
+            subscription.trial_start_date = now
+            subscription.trial_end_date = trial_end
+        subscription.current_period_start = now
+        subscription.current_period_end = period_end
+        subscription.next_billing_date = period_end
+        subscription.billing_amount = float(plan_price)
+        subscription.payment_gateway = 'paypal'
+        subscription.payment_method_id = paypal_subscription_id
+    else:
+        subscription = Subscription(
+            restaurant_id=user.restaurant.id,
+            pricing_plan_id=plan.id,
+            status=status,
+            trial_start_date=now if has_trial else None,
+            trial_end_date=trial_end if has_trial else None,
+            current_period_start=now,
+            current_period_end=period_end,
+            next_billing_date=period_end,
+            billing_amount=float(plan_price),
+            billing_interval=plan.price_period or 'month',
+            billing_currency=plan.currency or 'USD',
+            payment_gateway='paypal',
+            payment_method_id=paypal_subscription_id,
+            consent_timestamp=now,
+            consent_ip_address=request.remote_addr,
+            terms_version='1.0',
+            consent_method='paypal_checkout'
+        )
+        db.session.add(subscription)
+
+    user.restaurant.pricing_plan_id = plan.id
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'redirect_url': url_for('owner.settings'),
+        'message': f'Successfully subscribed to {plan.name}!'
+    })
 
 
 @owner_bp.route('/process-payment/<int:plan_id>', methods=['POST'])
@@ -1356,6 +1885,122 @@ def process_payment(plan_id):
 
     flash('Unknown payment gateway', 'error')
     return redirect(url_for('owner.checkout', plan_id=plan_id))
+
+
+# ============= SUBSCRIPTION MANAGEMENT =============
+
+@owner_bp.route('/cancel-subscription', methods=['POST'])
+@owner_required
+def cancel_subscription():
+    """Cancel current subscription"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+
+    from app.models.website_content_models import Subscription, PricingPlan
+    from app.services.payment_service import payment_service
+    from datetime import datetime
+
+    subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
+    if not subscription:
+        flash('No active subscription found', 'error')
+        return redirect(url_for('owner.settings'))
+
+    if subscription.status in ['cancelled', 'expired']:
+        flash('Subscription is already cancelled', 'info')
+        return redirect(url_for('owner.settings'))
+
+    # Get cancellation preference from form
+    cancel_immediately = request.form.get('cancel_immediately') == '1'
+
+    # Cancel with payment gateway
+    if subscription.payment_gateway == 'stripe' and subscription.payment_method_id:
+        # Cancel Stripe subscription
+        result = payment_service.stripe_cancel_subscription(
+            subscription.payment_method_id,
+            at_period_end=not cancel_immediately
+        )
+        if not result.success:
+            flash(f'Error cancelling Stripe subscription: {result.error}', 'error')
+            return redirect(url_for('owner.settings'))
+    elif subscription.payment_gateway == 'paypal' and subscription.payment_method_id:
+        # Cancel PayPal subscription
+        result = payment_service.paypal_cancel_subscription(
+            subscription.payment_method_id,
+            reason=request.form.get('reason', 'Customer requested cancellation')
+        )
+        if not result.success:
+            flash(f'Error cancelling PayPal subscription: {result.error}', 'error')
+            return redirect(url_for('owner.settings'))
+
+    # Update subscription status
+    now = datetime.utcnow()
+
+    if cancel_immediately or subscription.status == 'trialing':
+        # Cancel immediately (no payment made yet or user wants immediate cancellation)
+        subscription.status = 'cancelled'
+        subscription.cancelled_at = now
+        subscription.ended_at = now
+        subscription.cancel_at_period_end = False
+
+        # Downgrade to free plan if available
+        free_plan = PricingPlan.query.filter_by(price=0, is_active=True).first()
+        if free_plan:
+            user.restaurant.pricing_plan_id = free_plan.id
+
+        flash('Your subscription has been cancelled immediately. Thank you for using our service!', 'success')
+    else:
+        # Cancel at end of billing period
+        subscription.cancel_at_period_end = True
+        subscription.cancelled_at = now
+
+        flash(f'Your subscription will be cancelled at the end of the current billing period ({subscription.current_period_end.strftime("%B %d, %Y")}). You will continue to have access until then.', 'info')
+
+    subscription.cancellation_reason = request.form.get('reason', 'No reason provided')
+
+    db.session.commit()
+
+    return redirect(url_for('owner.settings'))
+
+
+@owner_bp.route('/reactivate-subscription', methods=['POST'])
+@owner_required
+def reactivate_subscription():
+    """Reactivate a cancelled subscription (before end of period)"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        flash('No restaurant found', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=1))
+
+    from app.models.website_content_models import Subscription
+    from datetime import datetime
+
+    subscription = Subscription.query.filter_by(restaurant_id=user.restaurant.id).first()
+
+    if not subscription:
+        flash('No subscription found', 'error')
+        return redirect(url_for('owner.settings'))
+
+    if not subscription.cancel_at_period_end:
+        flash('Subscription is not scheduled for cancellation', 'info')
+        return redirect(url_for('owner.settings'))
+
+    # Check if still within billing period
+    if subscription.current_period_end and datetime.utcnow() < subscription.current_period_end:
+        subscription.cancel_at_period_end = False
+        subscription.cancelled_at = None
+        subscription.cancellation_reason = None
+        db.session.commit()
+
+        flash('Your subscription has been reactivated! It will continue to auto-renew.', 'success')
+    else:
+        flash('Cannot reactivate - billing period has already ended', 'error')
+
+    return redirect(url_for('owner.settings'))
 
 
 # ============= TABLE MANAGEMENT =============
@@ -1673,6 +2318,295 @@ def kitchen_screen():
         orders=orders,
         stats=stats
     )
+
+
+# ==================== POS TERMINAL ====================
+
+@owner_bp.route('/<int:restaurant_id>/pos')
+@owner_required
+@feature_required('pos_integration')
+def pos_terminal(restaurant_id):
+    """POS Terminal for counter orders and payment processing"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return redirect(url_for('owner.dashboard'))
+
+    # Verify restaurant ownership
+    if user.restaurant.id != restaurant_id:
+        flash('Access denied. You can only access your own restaurant.', 'error')
+        return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
+
+    # Get active categories with menu items
+    categories = Category.query.filter_by(
+        restaurant_id=user.restaurant.id,
+        is_active=True
+    ).order_by(Category.sort_order).all()
+
+    # Get tables for dine-in orders
+    tables = Table.query.filter_by(
+        restaurant_id=user.restaurant.id,
+        is_active=True
+    ).order_by(Table.table_number).all()
+
+    # Get held orders
+    held_orders = Order.query.filter_by(
+        restaurant_id=user.restaurant.id,
+        is_held=True
+    ).order_by(Order.created_at.desc()).all()
+
+    return render_template('owner/pos_terminal.html',
+        user=user,
+        restaurant=user.restaurant,
+        categories=categories,
+        tables=tables,
+        held_orders=held_orders
+    )
+
+
+@owner_bp.route('/api/pos/create-order', methods=['POST'])
+@owner_required
+@feature_required('pos_integration')
+def api_pos_create_order():
+    """Create a new POS order"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+    items = data.get('items', [])
+    if not items:
+        return jsonify({'success': False, 'message': 'No items in order'}), 400
+
+    try:
+        # Create the order
+        order = Order(
+            restaurant_id=user.restaurant.id,
+            table_number=data.get('table_number', 0),
+            order_source='pos',
+            order_type=data.get('order_type', 'dine_in'),
+            notes=data.get('notes', ''),
+            customer_name=data.get('customer_name', ''),
+            customer_phone=data.get('customer_phone', ''),
+            is_held=data.get('is_held', False),
+            status='pending' if not data.get('is_held') else 'held'
+        )
+        order.generate_order_number()
+        db.session.add(order)
+        db.session.flush()
+
+        # Add order items
+        subtotal = 0
+        for item_data in items:
+            menu_item = MenuItem.query.get(item_data['menu_item_id'])
+            if not menu_item:
+                continue
+
+            quantity = item_data.get('quantity', 1)
+            unit_price = menu_item.price
+            item_subtotal = unit_price * quantity
+
+            order_item = OrderItem(
+                order_id=order.id,
+                menu_item_id=menu_item.id,
+                quantity=quantity,
+                unit_price=unit_price,
+                subtotal=item_subtotal,
+                notes=item_data.get('notes', '')
+            )
+            db.session.add(order_item)
+            subtotal += item_subtotal
+
+        # Calculate totals
+        order.subtotal = subtotal
+        discount_amount = data.get('discount_amount', 0)
+        discount_type = data.get('discount_type')
+
+        if discount_type == 'percentage':
+            order.discount_amount = subtotal * (discount_amount / 100)
+        else:
+            order.discount_amount = discount_amount
+        order.discount_type = discount_type
+
+        # Calculate tax
+        after_discount = subtotal - order.discount_amount
+        tax_rate = 0
+        if user.restaurant.sst_enabled:
+            tax_rate += user.restaurant.sst_rate or 0
+        if user.restaurant.service_tax_enabled:
+            tax_rate += user.restaurant.service_tax_rate or 0
+
+        order.tax_amount = after_discount * (tax_rate / 100)
+        order.total_price = after_discount + order.tax_amount
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Order created successfully',
+            'order': order.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@owner_bp.route('/api/pos/process-payment', methods=['POST'])
+@owner_required
+@feature_required('pos_integration')
+def api_pos_process_payment():
+    """Process payment for a POS order"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+    order_id = data.get('order_id')
+    if not order_id:
+        return jsonify({'success': False, 'message': 'Order ID required'}), 400
+
+    order = Order.query.filter_by(
+        id=order_id,
+        restaurant_id=user.restaurant.id
+    ).first()
+
+    if not order:
+        return jsonify({'success': False, 'message': 'Order not found'}), 404
+
+    try:
+        payment_method = data.get('payment_method', 'cash')
+        cash_received = float(data.get('cash_received', 0))
+
+        order.payment_method = payment_method
+        order.payment_status = 'paid'
+        order.is_held = False
+
+        if payment_method == 'cash':
+            order.cash_received = cash_received
+            order.change_given = max(0, cash_received - order.total_price)
+        elif payment_method == 'card':
+            order.cash_received = order.total_price
+            order.change_given = 0
+
+        # If order was held, update status to pending
+        if order.status == 'held':
+            order.status = 'pending'
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Payment processed successfully',
+            'order': order.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@owner_bp.route('/api/pos/held-orders')
+@owner_required
+@feature_required('pos_integration')
+def api_pos_held_orders():
+    """Get all held orders"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    held_orders = Order.query.filter_by(
+        restaurant_id=user.restaurant.id,
+        is_held=True
+    ).order_by(Order.created_at.desc()).all()
+
+    return jsonify({
+        'success': True,
+        'orders': [order.to_dict() for order in held_orders]
+    })
+
+
+@owner_bp.route('/api/pos/recall-order/<int:order_id>', methods=['POST'])
+@owner_required
+@feature_required('pos_integration')
+def api_pos_recall_order(order_id):
+    """Recall a held order"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    order = Order.query.filter_by(
+        id=order_id,
+        restaurant_id=user.restaurant.id,
+        is_held=True
+    ).first()
+
+    if not order:
+        return jsonify({'success': False, 'message': 'Held order not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'order': order.to_dict()
+    })
+
+
+@owner_bp.route('/api/pos/delete-order/<int:order_id>', methods=['DELETE'])
+@owner_required
+@feature_required('pos_integration')
+def api_pos_delete_order(order_id):
+    """Delete a held order"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    order = Order.query.filter_by(
+        id=order_id,
+        restaurant_id=user.restaurant.id,
+        is_held=True
+    ).first()
+
+    if not order:
+        return jsonify({'success': False, 'message': 'Held order not found'}), 404
+
+    try:
+        db.session.delete(order)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Order deleted'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@owner_bp.route('/api/pos/menu')
+@owner_required
+@feature_required('pos_integration')
+def api_pos_menu():
+    """Get menu for POS"""
+    user = get_current_owner()
+
+    if not user.restaurant:
+        return jsonify({'success': False, 'message': 'No restaurant found'}), 400
+
+    categories = Category.query.filter_by(
+        restaurant_id=user.restaurant.id,
+        is_active=True
+    ).order_by(Category.sort_order).all()
+
+    return jsonify({
+        'success': True,
+        'categories': [cat.to_dict() for cat in categories]
+    })
 
 
 @owner_bp.route('/api/kitchen/orders')
