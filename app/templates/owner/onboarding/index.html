@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Your Restaurant - {{ restaurant.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a25;
+            --border: #1f1f2e;
+            --border-light: #2a2a3d;
+            --text-primary: #ffffff;
+            --text-secondary: #8b8b9e;
+            --text-muted: #5a5a6e;
+            --accent-primary: #6366f1;
+            --accent-primary-glow: rgba(99, 102, 241, 0.2);
+            --accent-green: #22c55e;
+            --accent-green-bg: rgba(34, 197, 94, 0.1);
+            --accent-orange: #f97316;
+            --accent-orange-bg: rgba(249, 115, 22, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .onboarding-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .onboarding-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .onboarding-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .onboarding-header p {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            margin-bottom: 40px;
+        }
+
+        .progress-bar-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .progress-percentage {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .progress-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-card-hover);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), #818cf8);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* Steps List */
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .step-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+        }
+
+        .step-card.completed {
+            border-color: var(--accent-green);
+            background: var(--accent-green-bg);
+        }
+
+        .step-card.current {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-primary-glow);
+        }
+
+        .step-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .step-card.completed .step-icon {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .step-card.current .step-icon {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .step-card.pending .step-icon {
+            background: var(--bg-card-hover);
+            color: var(--text-muted);
+            border: 2px dashed var(--border-light);
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .step-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .step-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .step-badge.completed {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+        }
+
+        .step-badge.current {
+            background: var(--accent-primary-glow);
+            color: var(--accent-primary);
+        }
+
+        .step-badge.pending {
+            background: var(--bg-card-hover);
+            color: var(--text-muted);
+        }
+
+        .step-arrow {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        /* Action Buttons */
+        .action-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5558e3;
+        }
+
+        .btn-secondary {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        /* Restaurant Header */
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .restaurant-logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .restaurant-details h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .restaurant-details p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 24px;
+        }
+
+        .alert {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: var(--accent-green-bg);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .alert-warning {
+            background: var(--accent-orange-bg);
+            border: 1px solid var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .alert-info {
+            background: var(--accent-primary-glow);
+            border: 1px solid var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        /* Skip Link */
+        .skip-section {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .skip-link {
+            color: var(--text-muted);
+            font-size: 13px;
+            text-decoration: none;
+        }
+
+        .skip-link:hover {
+            color: var(--text-secondary);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Restaurant Info -->
+        <div class="restaurant-info">
+            <div class="restaurant-logo">
+                {% if restaurant.logo_path %}
+                    <img src="{{ restaurant.logo_path }}" alt="{{ restaurant.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">
+                {% else %}
+                    <i class="bi bi-shop"></i>
+                {% endif %}
+            </div>
+            <div class="restaurant-details">
+                <h2>{{ restaurant.name }}</h2>
+                <p>Let's get your restaurant ready for orders!</p>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="onboarding-header">
+            <h1><i class="bi bi-rocket-takeoff"></i> Setup Your Restaurant</h1>
+            <p>Complete these steps to start receiving orders from your customers</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <div class="progress-bar-container">
+                <div class="progress-info">
+                    <div>
+                        <div class="progress-percentage">{{ progress.progress_percentage }}%</div>
+                        <div class="progress-text">{{ progress.completed_steps|length }} of {{ progress.steps|length }} steps completed</div>
+                    </div>
+                    {% if progress.progress_percentage == 100 %}
+                        <span class="step-badge completed"><i class="bi bi-check-circle"></i> Complete!</span>
+                    {% endif %}
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ progress.progress_percentage }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Steps List -->
+        <div class="steps-list">
+            {% for step in steps %}
+                {% set step_url = '' %}
+                {% if step.name == 'profile_completed' %}
+                    {% set step_url = url_for('owner.profile') %}
+                {% elif step.name == 'category_created' %}
+                    {% set step_url = url_for('owner.menu_management', restaurant_id=restaurant.id) %}
+                {% elif step.name == 'menu_item_created' %}
+                    {% set step_url = url_for('owner.menu_management', restaurant_id=restaurant.id) %}
+                {% elif step.name == 'table_added' %}
+                    {% set step_url = url_for('owner.tables', restaurant_id=restaurant.id) %}
+                {% elif step.name == 'qr_code_generated' %}
+                    {% set step_url = url_for('owner.tables', restaurant_id=restaurant.id) %}
+                {% elif step.name == 'test_order_completed' %}
+                    {% set step_url = url_for('owner.orders', restaurant_id=restaurant.id) %}
+                {% endif %}
+
+                <a href="{{ step_url }}" class="step-card {% if step.is_completed %}completed{% elif step.is_current %}current{% else %}pending{% endif %}">
+                    <div class="step-icon">
+                        {% if step.is_completed %}
+                            <i class="bi bi-check-lg"></i>
+                        {% else %}
+                            <i class="bi {{ step.icon }}"></i>
+                        {% endif %}
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">{{ step.display_name }}</div>
+                        <div class="step-description">{{ step.description }}</div>
+                    </div>
+                    <div class="step-status">
+                        {% if step.is_completed %}
+                            <span class="step-badge completed">Completed</span>
+                        {% elif step.is_current %}
+                            <span class="step-badge current">Current</span>
+                        {% else %}
+                            <span class="step-badge pending">Pending</span>
+                        {% endif %}
+                        <i class="bi bi-chevron-right step-arrow"></i>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- Action Section -->
+        <div class="action-section">
+            {% if progress.next_step %}
+                {% set next_url = '' %}
+                {% if progress.next_step == 'profile_completed' %}
+                    {% set next_url = url_for('owner.profile') %}
+                {% elif progress.next_step == 'category_created' %}
+                    {% set next_url = url_for('owner.menu_management', restaurant_id=restaurant.id) %}
+                {% elif progress.next_step == 'menu_item_created' %}
+                    {% set next_url = url_for('owner.menu_management', restaurant_id=restaurant.id) %}
+                {% elif progress.next_step == 'table_added' %}
+                    {% set next_url = url_for('owner.tables', restaurant_id=restaurant.id) %}
+                {% elif progress.next_step == 'qr_code_generated' %}
+                    {% set next_url = url_for('owner.tables', restaurant_id=restaurant.id) %}
+                {% elif progress.next_step == 'test_order_completed' %}
+                    {% set next_url = url_for('owner.orders', restaurant_id=restaurant.id) %}
+                {% endif %}
+                <a href="{{ next_url }}" class="btn btn-primary">
+                    <i class="bi bi-arrow-right"></i> Continue Setup
+                </a>
+            {% else %}
+                <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Go to Dashboard
+                </a>
+            {% endif %}
+            <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="btn btn-secondary">
+                <i class="bi bi-grid"></i> View Dashboard
+            </a>
+        </div>
+
+        <!-- Skip Section (for advanced users) -->
+        <div class="skip-section">
+            <a href="{{ url_for('owner.dashboard', restaurant_id=restaurant.id) }}" class="skip-link">
+                I'll complete this later →
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh progress every 30 seconds
+        setInterval(function() {
+            fetch('/owner/api/onboarding/progress')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_complete) {
+                        window.location.href = '{{ url_for("owner.dashboard", restaurant_id=restaurant.id) }}';
+                    }
+                })
+                .catch(err => console.log('Progress check failed:', err));
+        }, 30000);
+    </script>
+</body>
+</html>
+

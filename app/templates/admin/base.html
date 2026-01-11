@@ -798,11 +798,17 @@
                 {% endif %}
 
                 <div class="nav-section">
-                    <div class="nav-section-title">Preferences</div>
+                    <div class="nav-section-title">Content</div>
                     <a href="{{ url_for('admin.public') }}" class="nav-link {% if request.endpoint == 'admin.public' or 'hero' in request.endpoint or 'feature' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-globe2"></i>
                         <span>Public Site</span>
                     </a>
+                    {% if has_permission('settings') %}
+                    <a href="{{ url_for('admin.contact_messages_list') }}" class="nav-link {% if 'contact_message' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-envelope-fill"></i>
+                        <span>Contact Messages</span>
+                    </a>
+                    {% endif %}
                 </div>
 
                 <!-- Theme Toggle -->

@@ -41,6 +41,12 @@ def create_app(config_class=Config):
     from app.routes.website_content_api import website_content_api  # Admin content management API
     from app.routes.public_admin import public_admin_bp  # Public admin routes
     from app.routes.subscription import subscription_bp  # Subscription management routes
+    from app.routes.onboarding import onboarding_bp  # Owner onboarding routes
+    from app.routes.webhooks import webhook_bp  # Payment webhook routes
+    from app.routes.white_label import white_label_bp  # White-label routes
+    from app.routes.compliance import compliance_bp  # Compliance routes
+    from app.routes.health import health_bp  # Health check routes
+    from app.api.v1 import api_v1_bp  # Versioned API v1
 
     csrf.exempt(auth_bp)
     csrf.exempt(restaurants_bp)
@@ -51,12 +57,24 @@ def create_app(config_class=Config):
     csrf.exempt(public_content_api)
     csrf.exempt(owner_bp)  # Exempt owner API routes for kitchen/customer screen
     csrf.exempt(subscription_bp)  # Exempt subscription API routes
+    csrf.exempt(onboarding_bp)  # Exempt onboarding API routes
+    csrf.exempt(webhook_bp)  # Exempt payment webhooks (they have their own verification)
+    csrf.exempt(api_v1_bp)  # Exempt versioned API
+    csrf.exempt(white_label_bp)  # Exempt white-label API
+    csrf.exempt(compliance_bp)  # Exempt compliance API
+    csrf.exempt(health_bp)  # Exempt health checks
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(admin_bp, url_prefix='/rock')
     app.register_blueprint(public_admin_bp, url_prefix='/rock/public')  # Public admin routes
     app.register_blueprint(owner_bp, url_prefix='')
     app.register_blueprint(subscription_bp, url_prefix='/owner')  # Subscription routes
+    app.register_blueprint(onboarding_bp, url_prefix='/owner')  # Onboarding routes
+    app.register_blueprint(white_label_bp)  # White-label routes (has /owner/api/white-label prefix)
+    app.register_blueprint(compliance_bp)  # Compliance routes (has /owner/api/compliance prefix)
+    app.register_blueprint(health_bp)  # Health check routes
+    app.register_blueprint(webhook_bp, url_prefix='/webhooks')  # Payment webhooks
+    app.register_blueprint(api_v1_bp)  # Versioned API v1 (has /api/v1 prefix)
     app.register_blueprint(restaurants_bp, url_prefix='/api/restaurants')
     app.register_blueprint(menu_bp, url_prefix='/api/menu')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
@@ -64,6 +82,12 @@ def create_app(config_class=Config):
     app.register_blueprint(registration_bp, url_prefix='/api/registration')
     app.register_blueprint(public_content_api)  # Public content API (has /api/public prefix)
     app.register_blueprint(website_content_api)  # Admin content API (has /api/website-content prefix)
+
+    # Register request handlers for correlation IDs and observability
+    from app.api.versioning import before_request_handler, after_request_handler, register_error_handlers
+    app.before_request(before_request_handler)
+    app.after_request(after_request_handler)
+    register_error_handlers(app)
 
     from app.models import User, Restaurant, Table, Category, MenuItem, Order, OrderItem, RegistrationRequest, ModerationLog
 

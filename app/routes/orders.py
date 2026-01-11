@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import User, Restaurant, Order, OrderItem, MenuItem, Table
 from app.schemas import validate_required_fields, json_response, error_response, role_required
+from app.services.order_number_service import OrderNumberService, OrderNumberConfig
 from datetime import datetime
 import uuid
 
@@ -36,6 +37,90 @@ def get_order(order_id):
         return error_response('Order not found', 404)
     return json_response(order.to_dict())
 
+
+@orders_bp.route('/lookup', methods=['GET'])
+@jwt_required()
+@role_required('restaurant_owner', 'system_admin')
+def lookup_order():
+    """
+    Look up an order by display number or internal ID.
+
+    Query params:
+    - display_number: The 4-digit display number (e.g., "0042" or "42" or "#42")
+    - internal_id: The UUID internal order ID
+    """
+    identity = get_jwt_identity()
+    user = User.query.filter_by(public_id=identity).first()
+    if not user.restaurant:
+        return error_response('No restaurant found', 404)
+
+    display_number = request.args.get('display_number')
+    internal_id = request.args.get('internal_id')
+
+    if display_number:
+        # Parse and look up by display number
+        parsed = OrderNumberService.parse_display_number(display_number)
+        if not parsed:
+            return error_response('Invalid display number format', 400)
+
+        order = OrderNumberService.lookup_by_display_number(user.restaurant.id, parsed)
+        if order:
+            return json_response(order.to_dict())
+
+        # If not found in active slots, search historical
+        order = Order.query.filter_by(
+            restaurant_id=user.restaurant.id,
+            display_order_number=parsed
+        ).order_by(Order.created_at.desc()).first()
+
+        if order:
+            return json_response(order.to_dict())
+
+        return error_response('Order not found', 404)
+
+    if internal_id:
+        order = OrderNumberService.lookup_by_internal_id(internal_id)
+        if order and order.restaurant_id == user.restaurant.id:
+            return json_response(order.to_dict())
+        return error_response('Order not found', 404)
+
+    return error_response('Please provide display_number or internal_id', 400)
+
+
+@orders_bp.route('/search', methods=['GET'])
+@jwt_required()
+@role_required('restaurant_owner', 'system_admin')
+def search_orders():
+    """
+    Search for orders by display number, internal ID, or customer info.
+
+    Query params:
+    - q: Search query
+    - include_completed: Whether to include completed orders (default: false)
+    - limit: Maximum results (default: 20)
+    """
+    identity = get_jwt_identity()
+    user = User.query.filter_by(public_id=identity).first()
+    if not user.restaurant:
+        return error_response('No restaurant found', 404)
+
+    query = request.args.get('q', '').strip()
+    include_completed = request.args.get('include_completed', 'false').lower() == 'true'
+    limit = min(int(request.args.get('limit', 20)), 100)
+
+    if not query:
+        return error_response('Search query is required', 400)
+
+    orders = OrderNumberService.search_orders(
+        restaurant_id=user.restaurant.id,
+        query=query,
+        include_completed=include_completed,
+        limit=limit
+    )
+
+    return json_response([order.to_dict() for order in orders])
+
+
 @orders_bp.route('/<int:order_id>/status', methods=['PUT'])
 @jwt_required()
 @role_required('restaurant_owner', 'system_admin')
@@ -48,13 +133,20 @@ def update_order_status(order_id):
     validation = validate_required_fields(data, ['status'])
     if validation:
         return validation
-    valid_statuses = ['pending', 'preparing', 'served', 'completed']
+    valid_statuses = ['pending', 'preparing', 'served', 'completed', 'cancelled']
     if data['status'] not in valid_statuses:
         return error_response(f'Invalid status. Must be one of: {", ".join(valid_statuses)}', 400)
     order = Order.query.filter_by(id=order_id, restaurant_id=user.restaurant.id).first()
     if not order:
         return error_response('Order not found', 404)
+
+    old_status = order.status
     order.status = data['status']
+
+    # Release display number if order is completed or cancelled
+    if data['status'] in OrderNumberConfig.COMPLETED_STATUSES and old_status not in OrderNumberConfig.COMPLETED_STATUSES:
+        order.release_display_number()
+
     db.session.commit()
     return json_response(order.to_dict(), 'Order status updated')
 
@@ -66,11 +158,10 @@ def get_active_orders():
     user = User.query.filter_by(public_id=identity).first()
     if not user.restaurant:
         return error_response('No restaurant found', 404)
-    orders = Order.query.filter(
-        Order.restaurant_id == user.restaurant.id,
-        Order.status.in_(['pending', 'preparing'])
-    ).order_by(Order.created_at.asc()).all()
-    return json_response([order.to_dict() for order in orders])
+
+    # Use the service to get active orders with display numbers
+    orders = OrderNumberService.get_active_orders_with_display(user.restaurant.id)
+    return json_response(orders)
 
 @orders_bp.route('/stats', methods=['GET'])
 @jwt_required()
@@ -90,12 +181,17 @@ def get_order_stats():
     pending = sum(1 for o in today_orders if o.status == 'pending')
     preparing = sum(1 for o in today_orders if o.status == 'preparing')
     completed = sum(1 for o in today_orders if o.status == 'completed')
+
+    # Include display number slot stats
+    slot_stats = OrderNumberService.get_slot_stats(user.restaurant.id)
+
     return json_response({
         'today_orders': total_orders,
         'today_revenue': total_revenue,
         'pending': pending,
         'preparing': preparing,
-        'completed': completed
+        'completed': completed,
+        'display_number_slots': slot_stats
     })
 
 @orders_bp.route('/create', methods=['POST'])
@@ -135,7 +231,9 @@ def create_order():
         if not data['items'] or not isinstance(data['items'], list):
             return error_response('Items are required', 400)
 
+        # Create order with internal order ID (UUID)
         order = Order(
+            internal_order_id=OrderNumberService.generate_internal_order_id(),
             table_number=data['table_number'],
             notes=data.get('notes'),
             restaurant_id=restaurant.id,
@@ -143,9 +241,12 @@ def create_order():
             order_type='dine_in'
         )
         db.session.add(order)
-        db.session.flush()
+        db.session.flush()  # Get the order.id for display number allocation
 
-        order.generate_order_number()  # Use the proper method to generate order number
+        # Allocate display order number using the new system
+        if not order.allocate_display_number():
+            # Fallback to legacy method if allocation fails
+            order.generate_order_number()
 
         order_items_count = 0
         for item_data in data['items']:

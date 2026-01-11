@@ -274,7 +274,23 @@ class Order(db.Model):
     __tablename__ = 'orders'
 
     id = db.Column(db.Integer, primary_key=True)
+
+    # ==== DUAL ORDER NUMBER SYSTEM ====
+    # 1. Internal Order ID - Globally unique, immutable, for system use
+    #    Used for: database relations, billing, refunds, webhooks, audits
+    internal_order_id = db.Column(db.String(50), unique=True, nullable=False,
+                                   default=lambda: str(uuid.uuid4()))
+
+    # 2. Display Order Number - 4-digit, restaurant-scoped, for human use
+    #    Used for: kitchen screens, customer confirmation, staff communication
+    #    Range: 1-9999 (formatted as 0001-9999)
+    display_order_number = db.Column(db.Integer, nullable=True, index=True)
+
+    # Legacy field - kept for backward compatibility during migration
+    # TODO: Remove after full migration to dual system
     order_number = db.Column(db.String(20), unique=True)
+    # =====================================
+
     table_number = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(20), default='pending')
     total_price = db.Column(db.Float, default=0.0)
@@ -300,7 +316,19 @@ class Order(db.Model):
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
 
+    # Index for efficient restaurant + display number lookups
+    __table_args__ = (
+        db.Index('ix_order_restaurant_display', 'restaurant_id', 'display_order_number'),
+        db.Index('ix_order_restaurant_status', 'restaurant_id', 'status'),
+    )
+
     def generate_order_number(self):
+        """
+        DEPRECATED: Use allocate_display_number() instead.
+
+        This method is kept for backward compatibility during migration.
+        It still sets the legacy order_number field.
+        """
         # Generate sequential order number for the restaurant
         # Format: #XXXX (4-digit sequential number per restaurant)
         from sqlalchemy import func
@@ -312,12 +340,103 @@ class Order(db.Model):
         sequential_num = (order_count % 10000) + 1
         self.order_number = f"#{sequential_num:04d}"
 
+        # Also set display_order_number for dual system compatibility
+        self.display_order_number = sequential_num
+
+    def allocate_display_number(self) -> bool:
+        """
+        Allocate a display order number using the new OrderNumberService.
+
+        This method:
+        1. Generates the internal_order_id if not already set
+        2. Allocates a display number from the slot pool
+        3. Sets both the new fields and legacy order_number for compatibility
+
+        Returns:
+            True if successful, False otherwise
+        """
+        from app.services.order_number_service import OrderNumberService
+
+        # Ensure internal order ID is set
+        if not self.internal_order_id:
+            self.internal_order_id = OrderNumberService.generate_internal_order_id()
+
+        # Allocate display number
+        success, display_num, error = OrderNumberService.allocate_display_number(
+            self.restaurant_id,
+            self.id
+        )
+
+        if success and display_num:
+            self.display_order_number = display_num
+            # Set legacy field with restaurant-scoped format for global uniqueness
+            # Format: R{restaurant_id}-{display_number:04d}
+            # This ensures no collision across restaurants while keeping the display portion readable
+            self.order_number = f"R{self.restaurant_id}-{display_num:04d}"
+            return True
+
+        return False
+
+    def release_display_number(self, immediate: bool = False) -> bool:
+        """
+        Release this order's display number back to the pool.
+
+        Should be called when order status changes to completed or cancelled.
+
+        Args:
+            immediate: If True, make the number immediately available
+
+        Returns:
+            True if successful, False otherwise
+        """
+        from app.services.order_number_service import OrderNumberService
+        return OrderNumberService.release_display_number(self.id, immediate)
+
+    @property
+    def display_number_formatted(self) -> str:
+        """Get the display order number in human-readable format (e.g., '0042')"""
+        from app.services.order_number_service import OrderNumberService
+        return OrderNumberService.format_display_number(self.display_order_number)
+
+    @classmethod
+    def find_by_display_number(cls, restaurant_id: int, display_number: int) -> 'Order':
+        """
+        Find the current active order with a given display number.
+
+        Args:
+            restaurant_id: The restaurant's database ID
+            display_number: The 4-digit display number
+
+        Returns:
+            The Order object or None
+        """
+        from app.services.order_number_service import OrderNumberService
+        return OrderNumberService.lookup_by_display_number(restaurant_id, display_number)
+
+    @classmethod
+    def find_by_internal_id(cls, internal_id: str) -> 'Order':
+        """
+        Find an order by its internal order ID (UUID).
+
+        Args:
+            internal_id: The UUID internal order ID
+
+        Returns:
+            The Order object or None
+        """
+        return cls.query.filter_by(internal_order_id=internal_id).first()
+
     def calculate_total(self):
         self.total_price = sum(item.subtotal for item in self.items)
 
     def to_dict(self):
         return {
             'id': self.id,
+            # New dual order number system
+            'internal_order_id': self.internal_order_id,
+            'display_order_number': self.display_order_number,
+            'display_order_number_formatted': self.display_number_formatted,
+            # Legacy field (for backward compatibility)
             'order_number': self.order_number,
             'table_number': self.table_number,
             'status': self.status,
@@ -564,3 +683,26 @@ from app.models.website_content_models import (
 # Import contact form models
 from app.models.contact_models import ContactMessage
 
+# Import order number service models
+from app.services.order_number_service import DisplayOrderSlot, OrderNumberService, OrderNumberConfig
+
+# Import onboarding models
+from app.models.onboarding_models import RestaurantOnboarding, OnboardingStep, FeatureVisibility
+
+# Import background job models
+from app.models.background_job_models import BackgroundJob, JobExecutionLog, IdempotencyRecord, JobStatus, JobType
+
+# Import tax models
+from app.models.tax_models import TaxRule, OrderTaxSnapshot, TaxDefaults
+
+# Import white-label models
+from app.models.white_label_models import CustomDomain, WhiteLabelBranding
+
+# Import compliance models
+from app.models.compliance_models import (
+    AuditLog, AuditLogCategory, AuditLogAction,
+    DataExportRequest, DataDeletionRequest, PIIMaskingConfig
+)
+
+# Import operational safety models
+from app.services.operational_safety import FeatureFlagModel

@@ -7,6 +7,7 @@ from functools import wraps
 from app import db
 from app.models import User, Restaurant, Order, OrderItem, Category, Table, MenuItem
 from app.services.qr_service import generate_restaurant_qr_code
+from app.services.onboarding_service import OnboardingService
 from datetime import datetime, timedelta
 
 owner_bp = Blueprint('owner', __name__)
@@ -49,7 +50,7 @@ def is_admin_accessing():
 
 
 def feature_required(feature_name):
-    """Decorator to check if restaurant has access to a specific feature based on pricing plan"""
+    """Decorator to check if restaurant has access to a specific feature based on pricing plan and onboarding status"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -58,6 +59,32 @@ def feature_required(feature_name):
             if not user or not user.restaurant:
                 flash('Please login to access your restaurant', 'info')
                 return redirect(url_for('owner.login'))
+
+            # Check if onboarding is complete for onboarding-gated features
+            is_accessible, lock_reason = OnboardingService.is_feature_accessible(
+                user.restaurant.id,
+                feature_name
+            )
+
+            if not is_accessible:
+                # If admin is accessing, redirect back with message
+                if is_admin_accessing():
+                    flash(f'This feature ({feature_name.replace("_", " ").title()}) requires onboarding to be complete.', 'warning')
+                    return redirect(url_for('admin.restaurant_detail', restaurant_id=user.restaurant.id))
+
+                # For owners, show onboarding or locked message
+                if lock_reason and 'onboarding' in lock_reason.lower():
+                    flash('Please complete onboarding to unlock this feature.', 'info')
+                    return redirect(url_for('onboarding.onboarding_flow'))
+
+                return render_template('owner/feature_locked.html',
+                    user=user,
+                    restaurant=user.restaurant,
+                    feature_name=feature_name,
+                    feature_display_name=feature_name.replace('_', ' ').title(),
+                    lock_reason=lock_reason,
+                    current_plan=user.restaurant.pricing_plan
+                )
 
             # Check if feature is enabled in pricing plan
             if not user.restaurant.has_feature(feature_name):
@@ -207,6 +234,16 @@ def login():
 
             # Redirect to restaurant-specific dashboard
             if user.restaurant:
+                # Initialize/check onboarding status
+                try:
+                    onboarding = OnboardingService.check_and_update_progress(user.restaurant.id)
+                    # If onboarding not complete, redirect to onboarding flow
+                    if onboarding and not onboarding.is_complete and not onboarding.skipped:
+                        return redirect(url_for('onboarding.onboarding_flow'))
+                except Exception as e:
+                    # Log error but don't block login
+                    current_app.logger.error(f"Onboarding check failed: {e}")
+
                 return redirect(url_for('owner.dashboard', restaurant_id=user.restaurant.id))
             else:
                 return redirect(url_for('owner.no_restaurant'))
@@ -376,6 +413,12 @@ def signup():
         db.session.add(new_subscription)
         db.session.commit()
 
+        # Initialize onboarding for the new restaurant
+        try:
+            OnboardingService.get_or_create_onboarding(new_restaurant.id)
+        except Exception as e:
+            current_app.logger.error(f"Failed to initialize onboarding: {e}")
+
         # Auto-login the user
         session.clear()
         session['owner_logged_in'] = True
@@ -383,8 +426,8 @@ def signup():
 
         flash(success_message, 'success')
 
-        # Redirect to restaurant dashboard
-        return redirect(url_for('owner.dashboard', restaurant_id=new_restaurant.id))
+        # Redirect to onboarding flow for new users
+        return redirect(url_for('onboarding.onboarding_flow'))
 
     except Exception as e:
         db.session.rollback()
@@ -524,10 +567,18 @@ def dashboard(restaurant_id):
         restaurant.pricing_plan_id = subscription.pricing_plan_id
         db.session.commit()
 
+    # Get onboarding progress
+    onboarding_progress = None
+    try:
+        onboarding_progress = OnboardingService.get_progress(restaurant.id)
+    except Exception as e:
+        current_app.logger.error(f"Failed to get onboarding progress: {e}")
+
     return render_template('owner/dashboard.html',
         user=user,
         restaurant=restaurant,
         subscription=subscription,
+        onboarding_progress=onboarding_progress,
         # Filter info
         filter_type=filter_type,
         start_date=start_date.strftime('%Y-%m-%d'),
@@ -745,10 +796,18 @@ def update_order_status(order_id):
         flash('Invalid status', 'error')
         return redirect(url_for('owner.orders'))
 
+    old_status = order.status
     order.status = new_status
+
+    # Release display number if order is completed or cancelled
+    if new_status in ['completed', 'cancelled'] and old_status not in ['completed', 'cancelled']:
+        order.release_display_number()
+
     db.session.commit()
 
-    flash(f'Order #{order.order_number} updated to {new_status}', 'success')
+    # Use display_order_number if available, otherwise fallback to order_number
+    display_num = order.display_number_formatted if order.display_order_number else order.order_number
+    flash(f'Order {display_num} updated to {new_status}', 'success')
     return redirect(url_for('owner.orders'))
 
 
@@ -2383,8 +2442,12 @@ def api_pos_create_order():
         return jsonify({'success': False, 'message': 'No items in order'}), 400
 
     try:
-        # Create the order
+        # Import the order number service
+        from app.services.order_number_service import OrderNumberService
+
+        # Create the order with internal order ID
         order = Order(
+            internal_order_id=OrderNumberService.generate_internal_order_id(),
             restaurant_id=user.restaurant.id,
             table_number=data.get('table_number', 0),
             order_source='pos',
@@ -2395,9 +2458,13 @@ def api_pos_create_order():
             is_held=data.get('is_held', False),
             status='pending' if not data.get('is_held') else 'held'
         )
-        order.generate_order_number()
         db.session.add(order)
-        db.session.flush()
+        db.session.flush()  # Get the order.id for display number allocation
+
+        # Allocate display order number using the new system
+        if not order.allocate_display_number():
+            # Fallback to legacy method if allocation fails
+            order.generate_order_number()
 
         # Add order items
         subtotal = 0
